@@ -1,0 +1,17 @@
+[package]
+name = "favilla"
+version = "0.1.0"
+edition = "2018"
+description = "A library with utilities for Vulkan programming."
+authors = ["StygianLightning <denrellum@gmail.com>"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/StygianLightning/favilla/favilla"
+keywords = ["vulkan"]
+
+[dependencies]
+ash = "0.33"
+ash-window = "0.7"
+cgmath = "0.18"
+raw-window-handle = "0.3.3"
+thiserror = "1.0"
+
