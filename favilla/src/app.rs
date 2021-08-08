@@ -47,7 +47,6 @@ impl App {
         }
 
         let enabled_extension_names = extensions.iter().map(|e| e.as_ptr()).collect::<Vec<_>>();
-
         let app_info = vk::ApplicationInfo::builder()
             .application_name(&app_name)
             .application_version(0)

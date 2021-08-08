@@ -1,7 +1,4 @@
-
-
 use ash::vk;
-
 
 pub fn find_memorytype_index(
     memory_req: &vk::MemoryRequirements,
