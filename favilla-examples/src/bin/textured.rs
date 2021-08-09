@@ -6,13 +6,13 @@ use winit::{
 
 #[cfg(target_os = "windows")]
 use ash::extensions::khr::Win32Surface;
-use ash::{vk, Entry};
-use std::default::Default;
-
 use ash::vk::{
-    DebugMarkerMarkerInfoEXT, DebugUtilsObjectNameInfoEXT, DeviceSize, ImageViewCreateInfo,
+    DebugMarkerMarkerInfoEXT, DebugUtilsObjectNameInfoEXT, DeviceSize, Handle, ImageViewCreateInfo,
     IndexType, MemoryPropertyFlags, PipelineLayout, ShaderModule, SharingMode, VertexInputRate,
 };
+use ash::{vk, Entry};
+use std::default::Default;
+use std::ffi::{CStr, CString};
 use vk_shader_macros::include_glsl;
 
 use favilla::vk_engine::{FrameDataManager, SwapchainManager, VulkanEngine};
@@ -694,9 +694,17 @@ fn main() -> anyhow::Result<()> {
                                 .debug_utils
                                 .debug_utils_set_object_name(
                                     vk_engine.device.handle(),
-                                    &DebugUtilsObjectNameInfoEXT::builder().build(),
+                                    &DebugUtilsObjectNameInfoEXT::builder()
+                                        .object_handle(new_vertex_buffer.buffer.buffer.as_raw())
+                                        .object_type(vk::ObjectType::BUFFER)
+                                        .object_name(
+                                            &CString::new("Sprite Vertices")
+                                                .expect("Failed to create name as CString"),
+                                        )
+                                        .build(),
                                 )
                                 .expect("Could not set object name");
+                            println!("set vertex buffer name!");
                         }
 
                         let old_vertex_buffer =
@@ -713,9 +721,28 @@ fn main() -> anyhow::Result<()> {
                             |i| i,
                         );
 
+                        if let Some(ref debug_utils_helper) = app.debug_utils_helper {
+                            debug_utils_helper
+                                .debug_utils
+                                .debug_utils_set_object_name(
+                                    vk_engine.device.handle(),
+                                    &DebugUtilsObjectNameInfoEXT::builder()
+                                        .object_handle(new_index_buffer.buffer.buffer.as_raw())
+                                        .object_type(vk::ObjectType::BUFFER)
+                                        .object_name(
+                                            &CString::new("Sprite Indices")
+                                                .expect("Failed to create name as CString"),
+                                        )
+                                        .build(),
+                                )
+                                .expect("Could not set object name");
+                            println!("set index buffer name!");
+                        }
+
                         let old_index_buffer =
                             std::mem::replace(&mut index_buffer, new_index_buffer);
                         println!("replaced index buffer");
+
                         cleanup_queue.queue(old_index_buffer);
                     }
 
