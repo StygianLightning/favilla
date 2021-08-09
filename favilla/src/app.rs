@@ -24,9 +24,7 @@ pub struct App {
 }
 
 impl App {
-    pub unsafe fn new(settings: AppSettings<'_>) -> Result<Self, Box<dyn Error>> {
-        let entry = Entry::new()?;
-
+    pub unsafe fn new(entry: Entry, settings: AppSettings<'_>) -> Result<Self, Box<dyn Error>> {
         let app_name = CString::new(settings.name)?;
 
         let layer_names = settings

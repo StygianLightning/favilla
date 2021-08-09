@@ -6,9 +6,8 @@ use winit::{
 
 #[cfg(target_os = "windows")]
 use ash::extensions::khr::Win32Surface;
-use ash::vk;
+use ash::{vk, Entry};
 use std::default::Default;
-
 
 use ash::vk::{
     DeviceSize, ImageViewCreateInfo, IndexType, MemoryPropertyFlags, PipelineLayout, ShaderModule,
@@ -27,7 +26,6 @@ use favilla::cleanup_queue::CleanupQueue;
 
 use favilla::memory::find_memorytype_index;
 use favilla::push_buffer::PushBuffer;
-
 
 use favilla_examples::*;
 
@@ -52,17 +50,21 @@ fn main() -> anyhow::Result<()> {
         .expect("Could not build window");
 
     unsafe {
-        let mut app = App::new(AppSettings {
-            name: "Styg VK Sample",
-            layer_names: &[favilla::layer_names::VK_LAYER_KHRONOS_VALIDATION],
-            add_debug_utils: true,
-            vk_api_version: vk::make_api_version(0, 1, 1, 0),
-            extensions: ash_window::enumerate_required_extensions(&window)
-                .expect("")
-                .into_iter()
-                .map(|n| n.to_owned())
-                .collect::<_>(),
-        })
+        let entry = Entry::new()?;
+        let mut app = App::new(
+            entry,
+            AppSettings {
+                name: "Styg VK Sample",
+                layer_names: &[favilla::layer_names::VK_LAYER_KHRONOS_VALIDATION],
+                add_debug_utils: true,
+                vk_api_version: vk::make_api_version(0, 1, 1, 0),
+                extensions: ash_window::enumerate_required_extensions(&window)
+                    .expect("")
+                    .into_iter()
+                    .map(|n| n.to_owned())
+                    .collect::<_>(),
+            },
+        )
         .unwrap_or_else(|err| panic!("Failed to construct app: {}", err));
 
         let mut vk_engine =
