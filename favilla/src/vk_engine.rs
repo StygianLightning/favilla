@@ -167,7 +167,7 @@ impl VulkanEngine {
             .unwrap();
 
         self.surface_resolution = match self.surface_capabilities.current_extent.width {
-            std::u32::MAX => new_extent,
+            u32::MAX => new_extent,
             _ => self.surface_capabilities.current_extent,
         };
 

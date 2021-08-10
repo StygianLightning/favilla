@@ -27,7 +27,10 @@ use favilla::cleanup_queue::CleanupQueue;
 use favilla::memory::find_memorytype_index;
 use favilla::push_buffer::PushBuffer;
 
+use ash::extensions::ext::DebugUtils;
+use favilla::debug_utils::DebugUtilsHelper;
 use favilla_examples::*;
+use std::ffi::{CStr, CString};
 
 const NUM_FRAMES: u32 = 2;
 
@@ -51,21 +54,53 @@ fn main() -> anyhow::Result<()> {
 
     unsafe {
         let entry = Entry::new()?;
+        let instance_extensions = entry
+            .enumerate_instance_extension_properties()
+            .expect("could not enumerate instance extensions");
+
+        println!("Available instance extensions:");
+        for instance_extension in &instance_extensions {
+            println!("{:?}", instance_extension);
+        }
+
+        let mut required_extensions: Vec<CString> =
+            ash_window::enumerate_required_extensions(&window)
+                .expect("enumerating required extensions for ash window failed")
+                .into_iter()
+                .map(|n| n.to_owned())
+                .collect::<_>();
+
+        let debug_utils_supported = instance_extensions
+            .iter()
+            .any(|x| CStr::from_ptr(x.extension_name.as_ptr()) == DebugUtils::name());
+
+        if debug_utils_supported {
+            println!("Enabling debug utils");
+            required_extensions.push(DebugUtils::name().to_owned());
+        } else {
+            println!("No support for debug utils");
+        }
+
         let mut app = App::new(
             entry,
             AppSettings {
                 name: "Styg VK Sample",
                 layer_names: &[favilla::layer_names::VK_LAYER_KHRONOS_VALIDATION],
-                add_debug_utils: true,
                 vk_api_version: vk::make_api_version(0, 1, 1, 0),
-                extensions: ash_window::enumerate_required_extensions(&window)
-                    .expect("")
-                    .into_iter()
-                    .map(|n| n.to_owned())
-                    .collect::<_>(),
+                extensions: required_extensions,
             },
         )
         .unwrap_or_else(|err| panic!("Failed to construct app: {}", err));
+
+        let mut debug_utils_helper = if debug_utils_supported {
+            Some(DebugUtilsHelper::new(
+                &app.entry,
+                &app.instance,
+                vulkan_debug_callback,
+            ))
+        } else {
+            None
+        };
 
         let mut vk_engine =
             VulkanEngine::new(&app, &window, NUM_FRAMES, window_width, window_height);
@@ -538,6 +573,10 @@ fn main() -> anyhow::Result<()> {
 
                     frame_manager.destroy(&vk_engine.device);
                     vk_engine.destroy();
+
+                    if let Some(debug_utils_helper) = &mut debug_utils_helper {
+                        debug_utils_helper.destroy();
+                    }
                     app.destroy();
                 }
                 Event::MainEventsCleared => {

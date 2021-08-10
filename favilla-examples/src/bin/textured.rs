@@ -1,9 +1,3 @@
-use vk::{DependencyFlags, PipelineStageFlags};
-use winit::{
-    event::{Event, WindowEvent},
-    event_loop::{ControlFlow, EventLoop},
-};
-
 #[cfg(target_os = "windows")]
 use ash::extensions::khr::Win32Surface;
 use ash::vk::{
@@ -11,9 +5,15 @@ use ash::vk::{
     IndexType, MemoryPropertyFlags, PipelineLayout, ShaderModule, SharingMode, VertexInputRate,
 };
 use ash::{vk, Entry};
+use cstr::cstr;
 use std::default::Default;
 use std::ffi::{CStr, CString};
+use vk::{DependencyFlags, PipelineStageFlags};
 use vk_shader_macros::include_glsl;
+use winit::{
+    event::{Event, WindowEvent},
+    event_loop::{ControlFlow, EventLoop},
+};
 
 use favilla::vk_engine::{FrameDataManager, SwapchainManager, VulkanEngine};
 
@@ -27,6 +27,8 @@ use favilla::cleanup_queue::CleanupQueue;
 use favilla::memory::find_memorytype_index;
 use favilla::push_buffer::PushBuffer;
 
+use ash::extensions::ext::DebugUtils;
+use favilla::debug_utils::DebugUtilsHelper;
 use favilla_examples::*;
 
 const NUM_FRAMES: u32 = 2;
@@ -54,13 +56,27 @@ fn main() -> anyhow::Result<()> {
             .enumerate_instance_extension_properties()
             .expect("could not enumerate instance extensions");
 
-        println!(
-            "Debug utils extension name: {:?}",
-            ash::extensions::ext::DebugUtils::name()
-        );
-
+        println!("Available instance extensions:");
         for instance_extension in &instance_extensions {
             println!("{:?}", instance_extension);
+        }
+
+        let mut required_extensions: Vec<CString> =
+            ash_window::enumerate_required_extensions(&window)
+                .expect("enumerating required extensions for ash window failed")
+                .into_iter()
+                .map(|n| n.to_owned())
+                .collect::<_>();
+
+        let debug_utils_supported = instance_extensions
+            .iter()
+            .any(|x| CStr::from_ptr(x.extension_name.as_ptr()) == DebugUtils::name());
+
+        if debug_utils_supported {
+            println!("Enabling debug utils");
+            required_extensions.push(DebugUtils::name().to_owned());
+        } else {
+            println!("No support for debug utils");
         }
 
         let mut app = App::new(
@@ -68,19 +84,25 @@ fn main() -> anyhow::Result<()> {
             AppSettings {
                 name: "Styg VK Sample",
                 layer_names: &[favilla::layer_names::VK_LAYER_KHRONOS_VALIDATION],
-                add_debug_utils: true,
                 vk_api_version: vk::make_api_version(0, 1, 1, 0),
-                extensions: ash_window::enumerate_required_extensions(&window)
-                    .expect("enumerating required extensions for ash window failed")
-                    .into_iter()
-                    .map(|n| n.to_owned())
-                    .collect::<_>(),
+                extensions: required_extensions,
             },
         )
         .unwrap_or_else(|err| panic!("Failed to construct app: {}", err));
 
+        let mut debug_utils_helper = if debug_utils_supported {
+            Some(DebugUtilsHelper::new(
+                &app.entry,
+                &app.instance,
+                vulkan_debug_callback,
+            ))
+        } else {
+            None
+        };
+
         let mut vk_engine =
             VulkanEngine::new(&app, &window, NUM_FRAMES, window_width, window_height);
+
         let mut frame_manager = FrameDataManager::new(&vk_engine);
 
         let render_pass = create_render_pass(&vk_engine);
@@ -529,6 +551,9 @@ fn main() -> anyhow::Result<()> {
 
                     frame_manager.destroy(&vk_engine.device);
                     vk_engine.destroy();
+                    if let Some(debug_utils_helper) = &mut debug_utils_helper {
+                        debug_utils_helper.destroy();
+                    }
                     app.destroy();
                 }
                 Event::MainEventsCleared => {
@@ -689,7 +714,7 @@ fn main() -> anyhow::Result<()> {
                             vk::MemoryPropertyFlags::DEVICE_LOCAL,
                         );
 
-                        if let Some(ref debug_utils_helper) = app.debug_utils_helper {
+                        if let Some(ref debug_utils_helper) = debug_utils_helper {
                             debug_utils_helper
                                 .debug_utils
                                 .debug_utils_set_object_name(
@@ -721,21 +746,15 @@ fn main() -> anyhow::Result<()> {
                             |i| i,
                         );
 
-                        if let Some(ref debug_utils_helper) = app.debug_utils_helper {
+                        if let Some(ref debug_utils_helper) = debug_utils_helper {
                             debug_utils_helper
-                                .debug_utils
-                                .debug_utils_set_object_name(
-                                    vk_engine.device.handle(),
-                                    &DebugUtilsObjectNameInfoEXT::builder()
-                                        .object_handle(new_index_buffer.buffer.buffer.as_raw())
-                                        .object_type(vk::ObjectType::BUFFER)
-                                        .object_name(
-                                            &CString::new("Sprite Indices")
-                                                .expect("Failed to create name as CString"),
-                                        )
-                                        .build(),
+                                .set_object_name(
+                                    &vk_engine.device,
+                                    new_index_buffer.buffer.buffer.as_raw(),
+                                    vk::ObjectType::BUFFER,
+                                    &CString::from(cstr!("Sprite Indices")),
                                 )
-                                .expect("Could not set object name");
+                                .expect("Could not set index buffer name");
                             println!("set index buffer name!");
                         }
 

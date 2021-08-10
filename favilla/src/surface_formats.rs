@@ -11,6 +11,11 @@ pub unsafe fn find_surface_format(
         .get_physical_device_surface_formats(physical_device, surface)
         .unwrap();
 
+    println!("supported surface formats:");
+    for surface_format in &surface_formats {
+        println!("{:?}", surface_format);
+    }
+
     surface_formats
         .into_iter()
         .next()
