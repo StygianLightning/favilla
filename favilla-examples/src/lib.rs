@@ -6,6 +6,7 @@ use favilla::vk_engine::VulkanEngine;
 use memoffset::offset_of;
 use std::borrow::Cow;
 use std::ffi::{CStr, CString};
+use tracing::{event, Level};
 
 #[derive(Debug, Copy, Clone)]
 pub struct Vertex {
@@ -277,7 +278,8 @@ pub unsafe extern "system" fn vulkan_debug_callback(
         CStr::from_ptr(callback_data.p_message).to_string_lossy()
     };
 
-    println!(
+    event!(
+        Level::DEBUG,
         "{:?}:\n{:?} [{} ({})] : {}\n",
         message_severity,
         message_type,

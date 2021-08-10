@@ -11,6 +11,7 @@ use crate::find_family::DeviceQueueFamilies;
 use ash::prelude::VkResult;
 use raw_window_handle::HasRawWindowHandle;
 use std::default::Default;
+use tracing::{event, Level};
 
 pub struct VulkanEngine {
     pub num_frames: u32,
@@ -74,7 +75,7 @@ impl VulkanEngine {
         let surface_format =
             crate::surface_formats::find_surface_format(&surface_loader, surface, physical_device);
 
-        println!("using surface format {:?}", surface_format);
+        event!(Level::DEBUG, "using surface format {:?}", surface_format);
 
         let device_memory_properties = app
             .instance
@@ -352,7 +353,8 @@ impl SwapchainManager {
             .unwrap_or(&vk::PresentModeKHR::FIFO)
             .clone();
 
-        println!(
+        event!(
+            Level::DEBUG,
             "image extent in SwapchainManger::new = {:?}",
             engine.surface_resolution
         );

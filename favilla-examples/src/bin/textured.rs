@@ -1,3 +1,4 @@
+use ash::extensions::ext::DebugUtils;
 #[cfg(target_os = "windows")]
 use ash::extensions::khr::Win32Surface;
 use ash::vk::{
@@ -5,9 +6,11 @@ use ash::vk::{
     IndexType, MemoryPropertyFlags, PipelineLayout, ShaderModule, SharingMode, VertexInputRate,
 };
 use ash::{vk, Entry};
+use cgmath::{vec2, vec4, Matrix4};
 use cstr::cstr;
 use std::default::Default;
 use std::ffi::{CStr, CString};
+use tracing::{event, Level};
 use vk::{DependencyFlags, PipelineStageFlags};
 use vk_shader_macros::include_glsl;
 use winit::{
@@ -15,21 +18,17 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
 };
 
-use favilla::vk_engine::{FrameDataManager, SwapchainManager, VulkanEngine};
-
-use cgmath::{vec2, vec4, Matrix4};
-
 use favilla::app::{App, AppSettings};
 use favilla::buffer::{StagingBufferWithDedicatedAllocation, VulkanBufferWithDedicatedAllocation};
 use favilla::camera::Camera;
 use favilla::cleanup_queue::CleanupQueue;
-
+use favilla::debug_utils::DebugUtilsHelper;
 use favilla::memory::find_memorytype_index;
 use favilla::push_buffer::PushBuffer;
-
-use ash::extensions::ext::DebugUtils;
-use favilla::debug_utils::DebugUtilsHelper;
+use favilla::vk_engine::{FrameDataManager, SwapchainManager, VulkanEngine};
 use favilla_examples::*;
+use tracing::level_filters::LevelFilter;
+use tracing_subscriber::fmt::Subscriber;
 
 const NUM_FRAMES: u32 = 2;
 
@@ -37,6 +36,13 @@ const VERT: &[u32] = include_glsl!("shaders/tri.vert");
 const FRAG: &[u32] = include_glsl!("shaders/tri.frag", kind: frag);
 
 fn main() -> anyhow::Result<()> {
+    let subscriber = Subscriber::builder()
+        .with_ansi(false)
+        .with_max_level(LevelFilter::DEBUG)
+        .finish();
+
+    tracing::subscriber::set_global_default(subscriber)?;
+
     let window_height = 600;
     let window_width = 800;
 
@@ -56,9 +62,9 @@ fn main() -> anyhow::Result<()> {
             .enumerate_instance_extension_properties()
             .expect("could not enumerate instance extensions");
 
-        println!("Available instance extensions:");
+        event!(Level::DEBUG, "Available instance extensions:");
         for instance_extension in &instance_extensions {
-            println!("{:?}", instance_extension);
+            event!(Level::DEBUG, "{:?}", instance_extension);
         }
 
         let mut required_extensions: Vec<CString> =
@@ -73,10 +79,10 @@ fn main() -> anyhow::Result<()> {
             .any(|x| CStr::from_ptr(x.extension_name.as_ptr()) == DebugUtils::name());
 
         if debug_utils_supported {
-            println!("Enabling debug utils");
+            event!(Level::DEBUG, "Enabling debug utils");
             required_extensions.push(DebugUtils::name().to_owned());
         } else {
-            println!("No support for debug utils");
+            event!(Level::DEBUG, "No support for debug utils");
         }
 
         let mut app = App::new(
@@ -256,7 +262,11 @@ fn main() -> anyhow::Result<()> {
         )
         .expect("Failed to create linear allocator");
 
-        println!("Texture memory allocator: {:#?}", texture_memory_allocator);
+        event!(
+            Level::DEBUG,
+            "Texture memory allocator: {:#?}",
+            texture_memory_allocator
+        );
 
         let mut image_one_staging_buffer = StagingBufferWithDedicatedAllocation::allocate(
             &vk_engine,
@@ -271,7 +281,11 @@ fn main() -> anyhow::Result<()> {
             .allocate(image_one_mem_req)
             .expect("Failed to allocate sub memory for image one");
 
-        println!("sub allocation for image one: {:?}", image_one_memory);
+        event!(
+            Level::DEBUG,
+            "sub allocation for image one: {:?}",
+            image_one_memory
+        );
 
         image_one
             .bind_memory(&vk_engine, image_one_memory.memory, image_one_memory.offset)
@@ -333,7 +347,11 @@ fn main() -> anyhow::Result<()> {
             .allocate(image_two_mem_req)
             .expect("Failed to allocate sub memory for image one");
 
-        println!("sub allocation for image one: {:?}", image_two_memory);
+        event!(
+            Level::DEBUG,
+            "sub allocation for image one: {:?}",
+            image_two_memory
+        );
 
         image_two
             .bind_memory(&vk_engine, image_two_memory.memory, image_two_memory.offset)
@@ -436,7 +454,7 @@ fn main() -> anyhow::Result<()> {
             &[],
         );
 
-        println!("all texture stuff done");
+        event!(Level::DEBUG, "all texture stuff done");
         // TEXTURE FUN END
 
         let vertex_shader_info = vk::ShaderModuleCreateInfo::builder().code(VERT);
@@ -493,7 +511,7 @@ fn main() -> anyhow::Result<()> {
                     event: WindowEvent::CloseRequested,
                     ..
                 } => {
-                    println!("Exiting");
+                    event!(Level::DEBUG, "Exiting");
                     exiting = true;
                     *control_flow = ControlFlow::Exit;
 
@@ -693,14 +711,16 @@ fn main() -> anyhow::Result<()> {
                                 | vk::MemoryPropertyFlags::HOST_COHERENT,
                         );
 
-                        println!(
+                        event!(
+                            Level::DEBUG,
                             "old staging buffer memory: {:?}, new staging buffer memory: {:?}",
-                            staging_buffer.memory, new_staging_buffer.memory
+                            staging_buffer.memory,
+                            new_staging_buffer.memory
                         );
 
                         let old_staging_buffer =
                             std::mem::replace(staging_buffer, new_staging_buffer);
-                        println!("replaced staging buffer");
+                        event!(Level::DEBUG, "replaced staging buffer");
                         cleanup_queue.queue(old_staging_buffer);
                     }
 
@@ -729,12 +749,12 @@ fn main() -> anyhow::Result<()> {
                                         .build(),
                                 )
                                 .expect("Could not set object name");
-                            println!("set vertex buffer name!");
+                            event!(Level::DEBUG, "set vertex buffer name!");
                         }
 
                         let old_vertex_buffer =
                             std::mem::replace(&mut vertex_buffer, new_vertex_buffer);
-                        println!("replaced vertex buffer");
+                        event!(Level::DEBUG, "replaced vertex buffer");
                         cleanup_queue.queue(old_vertex_buffer);
                     }
 
@@ -755,12 +775,12 @@ fn main() -> anyhow::Result<()> {
                                     &CString::from(cstr!("Sprite Indices")),
                                 )
                                 .expect("Could not set index buffer name");
-                            println!("set index buffer name!");
+                            event!(Level::DEBUG, "set index buffer name!");
                         }
 
                         let old_index_buffer =
                             std::mem::replace(&mut index_buffer, new_index_buffer);
-                        println!("replaced index buffer");
+                        event!(Level::DEBUG, "replaced index buffer");
 
                         cleanup_queue.queue(old_index_buffer);
                     }

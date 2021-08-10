@@ -1,6 +1,7 @@
 use ash::extensions::khr::Surface;
 use ash::vk;
 use ash::vk::PhysicalDevice;
+use tracing::{event, Level};
 
 pub unsafe fn find_surface_format(
     surface_loader: &Surface,
@@ -11,9 +12,9 @@ pub unsafe fn find_surface_format(
         .get_physical_device_surface_formats(physical_device, surface)
         .unwrap();
 
-    println!("supported surface formats:");
+    event!(Level::DEBUG, "supported surface formats:");
     for surface_format in &surface_formats {
-        println!("{:?}", surface_format);
+        event!(Level::DEBUG, "{:?}", surface_format);
     }
 
     surface_formats

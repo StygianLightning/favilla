@@ -1,4 +1,4 @@
-use ash::extensions::ext::DebugUtils;
+
 use ash::Entry;
 use ash::{vk, Instance};
 use std::error::Error;
@@ -31,9 +31,11 @@ impl App {
             .map(|raw_name| raw_name.as_ptr())
             .collect();
 
-        let mut extensions = settings.extensions;
-
-        let enabled_extension_names = extensions.iter().map(|e| e.as_ptr()).collect::<Vec<_>>();
+        let enabled_extension_names = settings
+            .extensions
+            .iter()
+            .map(|e| e.as_ptr())
+            .collect::<Vec<_>>();
         let app_info = vk::ApplicationInfo::builder()
             .application_name(&app_name)
             .application_version(0)

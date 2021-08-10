@@ -6,8 +6,8 @@ use ash::vk::{
     Handle, ObjectType, PFN_vkDebugUtilsMessengerCallbackEXT,
 };
 use ash::{vk, Device, Entry, Instance};
-use std::borrow::Cow;
-use std::ffi::{c_void, CStr, CString};
+
+use std::ffi::{c_void, CString};
 
 pub type DebugUtilsMessengerCallback = unsafe extern "system" fn(
     message_severity: DebugUtilsMessageSeverityFlagsEXT,

@@ -14,4 +14,5 @@ ash-window = "0.7"
 cgmath = "0.18"
 raw-window-handle = "0.3.3"
 thiserror = "1.0"
+tracing = "0.1"
 
