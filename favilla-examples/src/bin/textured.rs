@@ -34,6 +34,7 @@ const NUM_FRAMES: u32 = 2;
 
 const VERT: &[u32] = include_glsl!("shaders/tri.vert");
 const FRAG: &[u32] = include_glsl!("shaders/tri.frag", kind: frag);
+const FRAG_INVERTED: &[u32] = include_glsl!("shaders/inverted.frag", kind: frag);
 
 fn main() -> anyhow::Result<()> {
     let subscriber = Subscriber::builder()
@@ -487,6 +488,21 @@ fn main() -> anyhow::Result<()> {
             pipeline_layout,
         );
 
+        let inverted_fragment_shader_info =
+            vk::ShaderModuleCreateInfo::builder().code(FRAG_INVERTED);
+        let inverted_fragment_shader = vk_engine
+            .device
+            .create_shader_module(&inverted_fragment_shader_info, None)
+            .unwrap();
+
+        let inverted_graphics_pipeline = create_graphics_pipeline(
+            &vk_engine,
+            render_pass,
+            vertex_shader,
+            inverted_fragment_shader,
+            pipeline_layout,
+        );
+
         let mut recreate_swapchain = false;
 
         event_loop.run(move |event, _, control_flow| {
@@ -538,6 +554,9 @@ fn main() -> anyhow::Result<()> {
                     vk_engine
                         .device
                         .destroy_shader_module(fragment_shader, None);
+                    vk_engine
+                        .device
+                        .destroy_shader_module(inverted_fragment_shader, None);
 
                     vk_engine
                         .device
@@ -562,6 +581,9 @@ fn main() -> anyhow::Result<()> {
                     vk_engine.device.destroy_sampler(sampler, None);
 
                     vk_engine.device.destroy_pipeline(graphics_pipeline, None);
+                    vk_engine
+                        .device
+                        .destroy_pipeline(inverted_graphics_pipeline, None);
 
                     swapchain_manager.destroy(&vk_engine.device);
 
@@ -903,14 +925,19 @@ fn main() -> anyhow::Result<()> {
                         IndexType::UINT32,
                     );
 
-                    vk_engine.device.cmd_draw_indexed(
+                    vk_engine
+                        .device
+                        .cmd_draw_indexed(command_buffer, 3, 1, 0, 0, 0);
+
+                    vk_engine.device.cmd_bind_pipeline(
                         command_buffer,
-                        push_buffer.data.len() as _,
-                        1,
-                        0,
-                        0,
-                        0,
+                        vk::PipelineBindPoint::GRAPHICS,
+                        inverted_graphics_pipeline,
                     );
+
+                    vk_engine
+                        .device
+                        .cmd_draw_indexed(command_buffer, 3, 1, 3, 0, 0);
 
                     vk_engine.device.cmd_end_render_pass(command_buffer);
                     vk_engine.device.end_command_buffer(command_buffer).unwrap();
