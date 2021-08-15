@@ -779,19 +779,13 @@ fn main() -> anyhow::Result<()> {
 
                         if let Some(ref debug_utils_helper) = debug_utils_helper {
                             debug_utils_helper
-                                .debug_utils
-                                .debug_utils_set_object_name(
-                                    vk_engine.device.handle(),
-                                    &DebugUtilsObjectNameInfoEXT::builder()
-                                        .object_handle(new_vertex_buffer.buffer.buffer.as_raw())
-                                        .object_type(vk::ObjectType::BUFFER)
-                                        .object_name(
-                                            &CString::new("Sprite Vertices")
-                                                .expect("Failed to create name as CString"),
-                                        )
-                                        .build(),
+                                .set_object_name(
+                                    &vk_engine.device,
+                                    new_vertex_buffer.buffer.buffer.as_raw(),
+                                    vk::ObjectType::BUFFER,
+                                    cstr!("Sprite Vertices"),
                                 )
-                                .expect("Could not set object name");
+                                .expect("Could not set vertex buffer name");
                             event!(Level::DEBUG, "set vertex buffer name!");
                         }
 
@@ -815,7 +809,7 @@ fn main() -> anyhow::Result<()> {
                                     &vk_engine.device,
                                     new_index_buffer.buffer.buffer.as_raw(),
                                     vk::ObjectType::BUFFER,
-                                    &CString::from(cstr!("Sprite Indices")),
+                                    cstr!("Sprite Indices"),
                                 )
                                 .expect("Could not set index buffer name");
                             event!(Level::DEBUG, "set index buffer name!");

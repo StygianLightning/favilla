@@ -7,7 +7,7 @@ use ash::vk::{
 };
 use ash::{vk, Device, Entry, Instance};
 
-use std::ffi::{c_void, CString};
+use std::ffi::{c_void, CStr};
 
 pub type DebugUtilsMessengerCallback = unsafe extern "system" fn(
     message_severity: DebugUtilsMessageSeverityFlagsEXT,
@@ -52,7 +52,7 @@ impl DebugUtilsHelper {
         device: &Device,
         object_handle: u64,
         object_type: ObjectType,
-        name: &CString,
+        name: &CStr,
     ) -> VkResult<()> {
         self.debug_utils.debug_utils_set_object_name(
             device.handle(),
