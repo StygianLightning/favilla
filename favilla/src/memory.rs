@@ -19,7 +19,7 @@ pub fn try_find_memorytype_index(
         .enumerate()
         .find(|(index, memory_type)| {
             (1 << index) & memory_req.memory_type_bits != 0
-                && memory_type.property_flags & flags == flags
+                && memory_type.property_flags.contains(flags)
         })
         .map(|(index, _memory_type)| index as _)
 }

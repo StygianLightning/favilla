@@ -1,14 +1,13 @@
-use crate::vk_engine::VulkanEngine;
-
-use ash::{vk, Device};
-
 use crate::memory::find_memorytype_index;
+use crate::vk_engine::VulkanEngine;
 
 use ash::util::Align;
 use ash::vk::{Buffer, BufferCopy, DeviceMemory};
+use ash::{vk, Device};
 use std::ffi::c_void;
 use std::marker::PhantomData;
 use std::mem::align_of;
+use tracing::{event, Level};
 
 pub struct VulkanBuffer<T> {
     pub buffer: Buffer,
@@ -122,6 +121,12 @@ impl<T> VulkanBufferWithDedicatedAllocation<T> {
             &vk_engine.device_memory_properties,
             memory_property_flags,
         );
+        event!(
+            Level::DEBUG,
+            "Selected memory type index for buffer: {}",
+            memory_type_index
+        );
+
         let memory = vk_engine.allocate_memory(mem_req, memory_type_index);
         buffer.bind_memory(&vk_engine, memory, 0);
 

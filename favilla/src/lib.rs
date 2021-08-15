@@ -4,7 +4,6 @@ pub mod camera;
 pub mod cleanup;
 pub mod cleanup_queue;
 pub mod debug_utils;
-pub mod descriptor_utils;
 pub mod find_family;
 pub mod layer_names;
 pub mod linear_allocator;

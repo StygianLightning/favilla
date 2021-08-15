@@ -250,10 +250,31 @@ fn main() -> anyhow::Result<()> {
 
         let total_texture_size: vk::DeviceSize = 32 * 32 * 4 * 2;
 
+        {
+            let mut index = 0;
+            for mem_type in &vk_engine.device_memory_properties.memory_types {
+                event!(Level::DEBUG, "Memory index {} type: {:?}", index, mem_type);
+                index += 1;
+            }
+        }
+
+        {
+            let mut index = 0;
+            for heap in &vk_engine.device_memory_properties.memory_heaps {
+                event!(Level::DEBUG, "Memory heap index {}: {:?}", index, heap);
+                index += 1;
+            }
+        }
+
         let image_memory_type_index = find_memorytype_index(
             &image_one_mem_req,
             &vk_engine.device_memory_properties,
             MemoryPropertyFlags::DEVICE_LOCAL,
+        );
+        event!(
+            Level::DEBUG,
+            "Selected memory type index for images: {}",
+            image_memory_type_index
         );
 
         let mut texture_memory_allocator = favilla::linear_allocator::LinearAllocator::new(

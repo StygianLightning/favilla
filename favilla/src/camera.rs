@@ -42,15 +42,6 @@ impl Camera {
         self.min + self.extent
     }
 
-    /*
-    pub fn is_visible(&self, aabb: AABB) -> bool {
-        !(aabb.top_right.x < self.min().x
-            || aabb.top_right.y < self.min().y
-            || aabb.bottom_left.x > self.max().x
-            || aabb.bottom_left.y > self.max().y)
-    }
-     */
-
     pub fn extent(&self) -> Vector2<f32> {
         self.extent
     }
@@ -121,30 +112,5 @@ impl Camera {
                 1.,
             )
             * self.invert_viewport()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-
-    #[test]
-    fn bounds_check() {
-        /*
-        TODO -- port this over; AABB is not part of this project.
-        let mut camera = Camera::new(vec2(100., 100.), 0., 1.);
-        let sprite_bounds_bottom_left_corner = AABB {
-            bottom_left: point2(10., 10.),
-            top_right: point2(30., 30.),
-        };
-        let sprite_bounds_top_right_corner = AABB {
-            bottom_left: point2(110., 110.),
-            top_right: point2(130., 130.),
-        };
-        assert!(camera.is_visible(sprite_bounds_bottom_left_corner));
-        assert!(!camera.is_visible(sprite_bounds_top_right_corner));
-        camera.set_min(point2(50., 50.));
-        assert!(!camera.is_visible(sprite_bounds_bottom_left_corner));
-        assert!(camera.is_visible(sprite_bounds_top_right_corner));
-         */
     }
 }
