@@ -1,16 +1,19 @@
+use ash::extensions::khr::Surface;
 use ash::vk;
 use ash::vk::PhysicalDevice;
 
-use ash::extensions::khr::Surface;
-
+/// A struct holding a physical device, a queue family index and a surface.
 pub struct DeviceQueueFamilies {
     pub physical_device: PhysicalDevice,
-    //TODO we might want to add support for multiple queue families in case no queue family
-    // supports both graphics and presenting, but it seems no hardware actually works that way.
+    //We might want to add support for multiple queue families in case no queue family
+    // supports both graphics and presenting, but it seems no hardware actually works that way currently,
+    // so we're sticking to the simpler API for now.
     pub queue_family_index: u32,
     pub surface_loader: Surface,
 }
 
+/// Find a physical device and family index that supports both rendering and presenting with the given surface.
+/// Panics if no suitable device can be found, or if querying the physical device support fails.
 pub unsafe fn find(
     entry: &ash::Entry,
     instance: &ash::Instance,

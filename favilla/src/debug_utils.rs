@@ -16,6 +16,7 @@ pub type DebugUtilsMessengerCallback = unsafe extern "system" fn(
     p_user_data: *mut c_void,
 ) -> Bool32;
 
+/// A debug utils helper. Only use this if the `DebugUtils` extension has been enabled.
 pub struct DebugUtilsHelper {
     pub debug_utils: DebugUtils,
     pub debug_call_back: vk::DebugUtilsMessengerEXT,

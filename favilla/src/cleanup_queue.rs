@@ -1,6 +1,10 @@
 use crate::cleanup::Cleanup;
 use ash::vk;
 
+///A queue for cleaning up resources. Deletion of resources will be delayed by N
+/// frames to avoid concurrency problems.
+/// N should be initialized with the number of frames that can be in flight at the same time.
+/// Supported resources are: ash::vk::Buffer and ash::vk::DeviceMemory.
 #[derive(Debug)]
 pub struct CleanupQueue {
     frame_queue: Vec<QueuedFrame>,

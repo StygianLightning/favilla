@@ -8,6 +8,7 @@ use ash::extensions::{
 use ash::extensions::khr::Win32Surface;
 use ash::{vk, Device, Entry, Instance};
 
+/// Holds commonly used Vulkan structures.
 pub struct Renderer {
     pub num_frames: u32,
     pub entry: Entry,

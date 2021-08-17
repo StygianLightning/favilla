@@ -89,27 +89,16 @@ impl Camera {
 
     pub fn projection_matrix(&self) -> Matrix4<f32> {
         OPENGL_TO_VULKAN_MATRIX
-            * Matrix4::new(
-                //first row
-                2. / self.extent.x,
-                0.,
-                0.,
-                0.,
-                //second row
-                0.,
-                2. / self.extent.y,
-                0.,
-                0.,
-                //third row
-                0.,
-                0.,
-                2. / (self.far - self.near),
-                0.,
-                //fourth row
-                -1., //-(right + 0.) / (right - 0.),
-                -1., //-(top + bottom) / (top - bottom),
-                -(self.far + self.near) / (self.far - self.near),
-                1.,
+            * Matrix4::from_cols(
+                vec4(2. / self.extent.x, 0., 0., 0.),
+                vec4(0., 2. / self.extent.y, 0., 0.),
+                vec4(0., 0., 2. / (self.far - self.near), 0.),
+                vec4(
+                    -1., //-(right + 0.) / (right - 0.),
+                    -1., //-(top + bottom) / (top - bottom),
+                    -(self.far + self.near) / (self.far - self.near),
+                    1.,
+                ),
             )
             * self.invert_viewport()
     }

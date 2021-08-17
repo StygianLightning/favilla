@@ -1,15 +1,18 @@
 use ash::vk;
 
-pub fn find_memorytype_index(
+/// Find a memory type index suitable for the given requirements and flags.
+/// Panics if no suitable memory type can be found.
+pub fn find_memory_type_index(
     memory_req: &vk::MemoryRequirements,
     memory_prop: &vk::PhysicalDeviceMemoryProperties,
     flags: vk::MemoryPropertyFlags,
 ) -> u32 {
-    try_find_memorytype_index(memory_req, memory_prop, flags)
+    try_find_memory_type_index(memory_req, memory_prop, flags)
         .expect("Failed to find suitable memory index type")
 }
 
-pub fn try_find_memorytype_index(
+/// Find a memory type index suitable for the given requirements and flags.
+pub fn try_find_memory_type_index(
     memory_req: &vk::MemoryRequirements,
     memory_prop: &vk::PhysicalDeviceMemoryProperties,
     flags: vk::MemoryPropertyFlags,

@@ -13,6 +13,7 @@ use raw_window_handle::HasRawWindowHandle;
 use std::default::Default;
 use tracing::{event, Level};
 
+/// Holds commonly used Vulkan structures and provides some utility methods.
 pub struct VulkanEngine {
     pub num_frames: u32,
     pub current_frame: u32,
@@ -32,6 +33,7 @@ pub struct VulkanEngine {
 }
 
 impl VulkanEngine {
+    /// Create a new `VulkanEngine`.
     pub unsafe fn new(
         app: &App,
         window: &dyn HasRawWindowHandle,
@@ -121,21 +123,17 @@ impl VulkanEngine {
         self.surface_loader.destroy_surface(self.surface, None);
     }
 
+    /// Perform a new memory allocation. Panics if the allocation fails.
     pub unsafe fn allocate_memory(
         &self,
         memory_req: vk::MemoryRequirements,
         memory_type_index: u32,
     ) -> vk::DeviceMemory {
-        let _buffer_allocate_info = vk::MemoryAllocateInfo {
-            allocation_size: memory_req.size,
-            memory_type_index,
-            ..Default::default()
-        };
-
         self.try_allocate_memory(memory_req, memory_type_index)
             .expect("Failed to allocate memory")
     }
 
+    /// Perform a new memory allocation.
     pub unsafe fn try_allocate_memory(
         &self,
         memory_req: vk::MemoryRequirements,
@@ -149,10 +147,13 @@ impl VulkanEngine {
         self.device.allocate_memory(&buffer_allocate_info, None)
     }
 
+    /// Advance to the next frame.
+    /// This has to be called every frame in order for the synchronisation support to work properly.
     pub fn advance_frame(&mut self) {
         self.current_frame = (self.current_frame + 1) % self.num_frames;
     }
 
+    /// Recreate the swapchain. This will wait until the device is idle. Uses `SwapchainManager` under the hood.
     pub unsafe fn recreate_swapchain(
         &mut self,
         instance: &Instance,
@@ -176,6 +177,7 @@ impl VulkanEngine {
         *swapchain_manager = SwapchainManager::new(&instance, self, render_pass);
     }
 
+    /// Allocates descriptor sets.
     pub unsafe fn allocate_descriptor_sets(
         &self,
         set_layouts: &[vk::DescriptorSetLayout],
@@ -189,6 +191,7 @@ impl VulkanEngine {
         )
     }
 
+    /// Utility function for executing commands with a one time use command buffer (allocated every time).
     pub unsafe fn one_time_submit<F>(&self, command_pool: vk::CommandPool, f: F) -> ()
     where
         F: FnOnce(vk::CommandBuffer),
@@ -242,6 +245,7 @@ impl VulkanEngine {
     }
 }
 
+/// Helper struct holding a command pool and per-frame data: semaphores, fences and command buffers.
 pub struct FrameDataManager {
     pub frame_data: Vec<PerFrameData>,
     pub command_pool: vk::CommandPool,
@@ -310,6 +314,7 @@ impl FrameDataManager {
         }
     }
 
+    /// Frees all resources held by `self`.
     pub unsafe fn destroy(&mut self, device: &Device) {
         device.destroy_command_pool(self.command_pool, None);
         for frame_data in &mut self.frame_data {
@@ -318,6 +323,7 @@ impl FrameDataManager {
     }
 }
 
+/// Data held by `FrameDataManager`.
 pub struct PerFrameData {
     pub frame_fence: vk::Fence,
     pub command_buffer: vk::CommandBuffer,
@@ -326,6 +332,7 @@ pub struct PerFrameData {
 }
 
 impl PerFrameData {
+    /// Frees all resources held by `self`.
     pub unsafe fn destroy(&mut self, device: &Device) {
         device.destroy_semaphore(self.image_acquired_semaphore, None);
         device.destroy_semaphore(self.render_complete_semaphore, None);
@@ -333,6 +340,7 @@ impl PerFrameData {
     }
 }
 
+/// Helper for swapchain management.
 pub struct SwapchainManager {
     pub swapchain_loader: Swapchain,
     pub swapchain: vk::SwapchainKHR,
@@ -340,6 +348,10 @@ pub struct SwapchainManager {
 }
 
 impl SwapchainManager {
+    /// Create a new swapchain manager including swapchain-related resources.
+    /// This will create one framebuffer for every in-flight frame.
+    /// Imageless framebuffers are not supported yet.
+    /// Called by `VulkanEngine::recreate_swapchain`.
     pub unsafe fn new(instance: &Instance, engine: &VulkanEngine, render_pass: RenderPass) -> Self {
         let swapchain_loader = Swapchain::new(instance, &engine.device);
 
@@ -442,6 +454,7 @@ impl SwapchainManager {
 }
 
 impl SwapchainManager {
+    /// Frees all resources held by `self`.
     pub unsafe fn destroy(&mut self, device: &Device) {
         for swapchain_data in &mut self.swapchain_data {
             swapchain_data.destroy(device);
@@ -451,6 +464,7 @@ impl SwapchainManager {
     }
 }
 
+/// Data held by `SwapchainManager`.
 pub struct PerSwapchainImage {
     pub present_image: vk::Image,
     pub present_image_view: vk::ImageView,
@@ -458,6 +472,7 @@ pub struct PerSwapchainImage {
 }
 
 impl PerSwapchainImage {
+    /// Frees the resources held by `self`.
     pub unsafe fn destroy(&mut self, device: &Device) {
         device.destroy_framebuffer(self.framebuffer, None);
         device.destroy_image_view(self.present_image_view, None);

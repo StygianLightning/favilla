@@ -23,7 +23,7 @@ use favilla::buffer::{StagingBufferWithDedicatedAllocation, VulkanBufferWithDedi
 use favilla::camera::Camera;
 use favilla::cleanup_queue::CleanupQueue;
 use favilla::debug_utils::DebugUtilsHelper;
-use favilla::memory::find_memorytype_index;
+use favilla::memory::find_memory_type_index;
 use favilla::push_buffer::PushBuffer;
 use favilla::vk_engine::{FrameDataManager, SwapchainManager, VulkanEngine};
 use favilla_examples::*;
@@ -266,7 +266,7 @@ fn main() -> anyhow::Result<()> {
             }
         }
 
-        let image_memory_type_index = find_memorytype_index(
+        let image_memory_type_index = find_memory_type_index(
             &image_one_mem_req,
             &vk_engine.device_memory_properties,
             MemoryPropertyFlags::DEVICE_LOCAL,

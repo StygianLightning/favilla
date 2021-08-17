@@ -2,6 +2,7 @@ use ash::vk::{DeviceMemory, DeviceSize, MemoryRequirements};
 use ash::{vk, Device};
 use thiserror::Error;
 
+/// A simple linear allocator.
 #[derive(Debug)]
 pub struct LinearAllocator {
     memory: DeviceMemory,
@@ -9,6 +10,7 @@ pub struct LinearAllocator {
     free_section_start: u64,
 }
 
+/// An allocation within a larger chunk of allocated memory.
 #[derive(Debug)]
 pub struct SubAllocation {
     pub memory: DeviceMemory,
@@ -33,6 +35,7 @@ pub fn get_aligned_offset(offset: u64, alignment: u64) -> u64 {
 }
 
 impl LinearAllocator {
+    /// Create a new linear allocator with the given memory size and memory type index.
     pub unsafe fn new(
         device: &Device,
         size: DeviceSize,
@@ -53,6 +56,7 @@ impl LinearAllocator {
         })
     }
 
+    /// Try to get a free chunk of memory from the allocator.
     pub unsafe fn allocate(
         &mut self,
         memory_req: MemoryRequirements,
@@ -72,6 +76,7 @@ impl LinearAllocator {
         }
     }
 
+    /// Frees the allocator's memory.
     pub unsafe fn destroy(&mut self, device: &Device) {
         device.free_memory(self.memory, None);
     }

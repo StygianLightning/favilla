@@ -1,4 +1,4 @@
-use crate::memory::find_memorytype_index;
+use crate::memory::find_memory_type_index;
 use crate::vk_engine::VulkanEngine;
 
 use ash::util::Align;
@@ -116,7 +116,7 @@ impl<T> VulkanBufferWithDedicatedAllocation<T> {
         );
         let mem_req = buffer.get_memory_requirements(&vk_engine.device);
 
-        let memory_type_index = find_memorytype_index(
+        let memory_type_index = find_memory_type_index(
             &mem_req,
             &vk_engine.device_memory_properties,
             memory_property_flags,
