@@ -1,11 +1,8 @@
-#[cfg(all(unix, not(target_os = "android"), not(target_os = "macos")))]
 use ash::extensions::{
     ext::DebugUtils,
     khr::{Surface, Swapchain},
 };
 
-#[cfg(target_os = "windows")]
-use ash::extensions::khr::Win32Surface;
 use ash::{vk, Device, Entry, Instance};
 
 /// Holds commonly used Vulkan structures.
