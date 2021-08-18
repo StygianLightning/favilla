@@ -18,6 +18,7 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
 };
 
+use ash::extensions::khr::Swapchain;
 use favilla::app::{App, AppSettings};
 use favilla::buffer::{StagingBufferWithDedicatedAllocation, VulkanBufferWithDedicatedAllocation};
 use favilla::camera::Camera;
@@ -120,9 +121,17 @@ fn main() -> anyhow::Result<()> {
 
         event!(Level::DEBUG, "using surface format {:?}", surface_format);
 
+        let device_extension_names_raw = [Swapchain::name().as_ptr()];
+        let physical_device_features = vk::PhysicalDeviceFeatures {
+            shader_clip_distance: 1,
+            ..Default::default()
+        };
+
         let mut vk_engine = VulkanEngine::new(
             &app,
             surface,
+            &device_extension_names_raw,
+            physical_device_features,
             queue_families,
             surface_format,
             NUM_FRAMES,

@@ -9,6 +9,7 @@ use crate::swapchain::SwapchainManager;
 use ash::prelude::VkResult;
 use raw_window_handle::HasRawWindowHandle;
 use std::default::Default;
+use std::os::raw::c_char;
 use tracing::{event, Level};
 
 /// Holds commonly used Vulkan structures and provides some utility methods.
@@ -35,6 +36,8 @@ impl VulkanEngine {
     pub unsafe fn new(
         app: &App,
         surface: SurfaceKHR,
+        device_extension_names_raw: &[*const c_char],
+        features: vk::PhysicalDeviceFeatures,
         queue_families: DeviceQueueFamilies,
         surface_format: vk::SurfaceFormatKHR,
         num_frames: u32,
@@ -47,11 +50,6 @@ impl VulkanEngine {
             surface_loader,
         } = queue_families;
 
-        let device_extension_names_raw = [Swapchain::name().as_ptr()];
-        let features = vk::PhysicalDeviceFeatures {
-            shader_clip_distance: 1,
-            ..Default::default()
-        };
         let priorities = [1.0];
 
         let queue_info = [vk::DeviceQueueCreateInfo::builder()
