@@ -9,6 +9,7 @@ use std::marker::PhantomData;
 use std::mem::align_of;
 use tracing::{event, Level};
 
+/// Typed Vulkan buffer.
 pub struct VulkanBuffer<T> {
     pub buffer: Buffer,
     pub memory_flags: vk::MemoryPropertyFlags,
@@ -18,6 +19,7 @@ pub struct VulkanBuffer<T> {
 }
 
 impl<T> VulkanBuffer<T> {
+    /// Copy data from one Vulkan buffer to another. Requires correct usage flags.
     pub unsafe fn copy(
         &mut self,
         vk_engine: &VulkanEngine,
@@ -47,6 +49,7 @@ impl<T> VulkanBuffer<T> {
         }
     }
 
+    /// Creates a new `VulkanBuffer`.
     pub unsafe fn new(
         vk_engine: &VulkanEngine,
         length: u64,
@@ -73,10 +76,12 @@ impl<T> VulkanBuffer<T> {
         }
     }
 
+    /// Get the memory requirements for `self`.
     pub unsafe fn get_memory_requirements(&self, device: &Device) -> vk::MemoryRequirements {
         device.get_buffer_memory_requirements(self.buffer)
     }
 
+    /// Bind memory to the Vulkan buffer held by `self`.
     pub unsafe fn bind_memory(
         &mut self,
         engine: &VulkanEngine,
@@ -89,17 +94,20 @@ impl<T> VulkanBuffer<T> {
             .expect("Binding memory buffer failed");
     }
 
+    /// Frees the buffer resource held by `self`.
     pub unsafe fn destroy(&mut self, vk_engine: &VulkanEngine) {
         vk_engine.device.destroy_buffer(self.buffer, None);
     }
 }
 
+/// A Vulkan buffer with a dedicated memory allocation.
 pub struct VulkanBufferWithDedicatedAllocation<T> {
     pub buffer: VulkanBuffer<T>,
     pub memory: DeviceMemory,
 }
 
 impl<T> VulkanBufferWithDedicatedAllocation<T> {
+    /// Allocates a new buffer.
     pub unsafe fn allocate(
         vk_engine: &VulkanEngine,
         length: u64,
@@ -133,18 +141,21 @@ impl<T> VulkanBufferWithDedicatedAllocation<T> {
         Self { memory, buffer }
     }
 
+    /// Frees the buffer and memory resources held by `self`.
     pub unsafe fn destroy(&mut self, vk_engine: &VulkanEngine) {
         vk_engine.device.free_memory(self.memory, None);
         vk_engine.device.destroy_buffer(self.buffer.buffer, None);
     }
 }
 
+/// A wrapper for a staging buffer. Holds a `VulkanBuffer<T>` and a pointer to the mapped memory.
 pub struct StagingBuffer<T: Copy> {
     pub buffer: VulkanBuffer<T>,
     pub buffer_ptr: *mut c_void,
 }
 
 impl<T: Copy> StagingBuffer<T> {
+    /// Write the data to the staging buffer.
     pub unsafe fn write(&mut self, data: &[T]) {
         let mut slice = Align::new(
             self.buffer_ptr,
@@ -154,10 +165,12 @@ impl<T: Copy> StagingBuffer<T> {
         slice.copy_from_slice(data);
     }
 
+    /// Frees the buffer resource held by `self`.
     pub unsafe fn destroy(&mut self, vk_engine: &VulkanEngine) {
         self.buffer.destroy(vk_engine);
     }
 
+    /// Creates a new `StagingBuffer<T>`. Maps the buffer memory for writing; it is never unmapped.
     pub unsafe fn new(
         vk_engine: &VulkanEngine,
         buffer: VulkanBuffer<T>,
@@ -178,12 +191,14 @@ impl<T: Copy> StagingBuffer<T> {
     }
 }
 
+/// A staging buffer with a dedicated allocation.
 pub struct StagingBufferWithDedicatedAllocation<T: Copy> {
     pub buffer: StagingBuffer<T>,
     pub memory: DeviceMemory,
 }
 
 impl<T: Copy> StagingBufferWithDedicatedAllocation<T> {
+    /// Frees the buffer and memory resources held by `self`.
     pub unsafe fn destroy(&mut self, vk_engine: &VulkanEngine) {
         vk_engine.device.free_memory(self.memory, None);
         vk_engine
@@ -191,6 +206,7 @@ impl<T: Copy> StagingBufferWithDedicatedAllocation<T> {
             .destroy_buffer(self.buffer.buffer.buffer, None);
     }
 
+    /// Allocates a new staging buffer.
     pub unsafe fn allocate(
         vk_engine: &VulkanEngine,
         length: u64,
