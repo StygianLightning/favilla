@@ -2,8 +2,7 @@ use ash::extensions::ext::DebugUtils;
 use ash::prelude::VkResult;
 use ash::vk::{
     Bool32, DebugUtilsMessageSeverityFlagsEXT, DebugUtilsMessageTypeFlagsEXT,
-    DebugUtilsMessengerCallbackDataEXT, DebugUtilsObjectNameInfoEXT, DebugUtilsObjectTagInfoEXT,
-    Handle, ObjectType, PFN_vkDebugUtilsMessengerCallbackEXT,
+    DebugUtilsMessengerCallbackDataEXT, DebugUtilsObjectNameInfoEXT, ObjectType,
 };
 use ash::{vk, Device, Entry, Instance};
 

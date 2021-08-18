@@ -1,9 +1,6 @@
 use ash::extensions::ext::DebugUtils;
-#[cfg(target_os = "windows")]
-use ash::extensions::khr::Win32Surface;
 use ash::vk::{
-    DebugMarkerMarkerInfoEXT, DebugUtilsObjectNameInfoEXT, DeviceSize, Handle, ImageViewCreateInfo,
-    IndexType, MemoryPropertyFlags, PipelineLayout, ShaderModule, SharingMode, VertexInputRate,
+    DeviceSize, Handle, ImageViewCreateInfo, IndexType, MemoryPropertyFlags, SharingMode,
 };
 use ash::{vk, Entry};
 use cgmath::{vec2, vec4, Matrix4};
@@ -27,7 +24,6 @@ use favilla::debug_utils::DebugUtilsHelper;
 use favilla::frame_data::FrameDataManager;
 use favilla::memory::find_memory_type_index;
 use favilla::push_buffer::PushBuffer;
-use favilla::queue_families::DeviceQueueFamilies;
 use favilla::swapchain::SwapchainManager;
 use favilla::vk_engine::VulkanEngine;
 use favilla_examples::*;

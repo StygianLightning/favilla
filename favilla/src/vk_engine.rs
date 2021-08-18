@@ -1,4 +1,4 @@
-use ash::extensions::khr::{Surface, Swapchain};
+use ash::extensions::khr::Surface;
 
 use ash::vk::{DescriptorSet, RenderPass, SurfaceCapabilitiesKHR, SurfaceKHR};
 use ash::{vk, Device, Instance};
@@ -7,10 +7,8 @@ use crate::app::App;
 use crate::queue_families::DeviceQueueFamilies;
 use crate::swapchain::SwapchainManager;
 use ash::prelude::VkResult;
-use raw_window_handle::HasRawWindowHandle;
 use std::default::Default;
 use std::os::raw::c_char;
-use tracing::{event, Level};
 
 /// Holds commonly used Vulkan structures and provides some utility methods.
 pub struct VulkanEngine {

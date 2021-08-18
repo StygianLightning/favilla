@@ -1,6 +1,5 @@
 use crate::vk_engine::VulkanEngine;
 use ash::{vk, Device};
-use tracing::{event, Level};
 
 /// Helper struct holding a command pool and per-frame data: semaphores, fences and command buffers.
 pub struct FrameDataManager {
