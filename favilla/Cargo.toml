@@ -5,7 +5,8 @@ edition = "2018"
 description = "A library with utilities for Vulkan programming."
 authors = ["StygianLightning <denrellum@gmail.com>"]
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/StygianLightning/favilla/favilla"
+readme = "../README.md"
+repository = "https://github.com/StygianLightning/favilla"
 keywords = ["vulkan"]
 
 [dependencies]
