@@ -41,8 +41,7 @@ impl VulkanEngine {
         queue_families: DeviceQueueFamilies,
         surface_format: vk::SurfaceFormatKHR,
         num_frames: u32,
-        window_width: u32,
-        window_height: u32,
+        window_extent: vk::Extent2D,
     ) -> Self {
         let DeviceQueueFamilies {
             physical_device,
@@ -86,10 +85,7 @@ impl VulkanEngine {
         }
 
         let surface_resolution = match surface_capabilities.current_extent.width {
-            u32::MAX => vk::Extent2D {
-                width: window_width,
-                height: window_height,
-            },
+            u32::MAX => window_extent,
             _ => surface_capabilities.current_extent,
         };
         Self {

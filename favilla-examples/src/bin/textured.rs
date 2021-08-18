@@ -135,8 +135,10 @@ fn main() -> anyhow::Result<()> {
             queue_families,
             surface_format,
             NUM_FRAMES,
-            window_width,
-            window_height,
+            vk::Extent2D {
+                width: window_width,
+                height: window_height,
+            },
         );
 
         let mut frame_manager = FrameDataManager::new(&vk_engine);
