@@ -266,9 +266,10 @@ fn main() -> anyhow::Result<()> {
             &vk_engine,
             image_format,
             vk::ImageType::TYPE_2D,
-            favilla::texture::TextureExtent {
+            vk::Extent3D {
                 width: 1,
                 height: 1,
+                depth: 1,
             },
             1,
         )?;
@@ -375,9 +376,10 @@ fn main() -> anyhow::Result<()> {
             &vk_engine,
             image_format,
             vk::ImageType::TYPE_2D,
-            favilla::texture::TextureExtent {
+            vk::Extent3D {
                 width: 2,
                 height: 2,
+                depth: 1,
             },
             1,
         )?;

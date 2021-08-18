@@ -6,12 +6,7 @@ use crate::vk_engine::VulkanEngine;
 use ash::vk::{ImageLayout, ImageMemoryBarrier};
 use ash::Device;
 
-#[derive(Copy, Clone, Debug)]
-pub struct TextureExtent {
-    pub width: u32,
-    pub height: u32,
-}
-
+/// A Texture struct. Holds a vk::Image and information about its format, extent and number of layers.
 pub struct Texture {
     pub format: vk::Format,
     pub image: vk::Image,
@@ -19,7 +14,9 @@ pub struct Texture {
     pub num_array_layers: u32,
 }
 
-unsafe fn copy_buffer_to_image(
+/// Utility function for copying the content of a buffer to an image. The image has to be in a format suitable for a transfer.
+/// The copy command is issued to the given command buffer.
+pub unsafe fn copy_buffer_to_image(
     device: &Device,
     command_buffer: vk::CommandBuffer,
     image_staging_buffer: vk::Buffer,
@@ -49,6 +46,7 @@ unsafe fn copy_buffer_to_image(
     );
 }
 
+/// Utility function for transitioning the layout of the given images using a pipeline barrier.
 unsafe fn transition_layout(
     device: &Device,
     command_buffer: vk::CommandBuffer,
@@ -73,14 +71,9 @@ impl Texture {
         vk_engine: &VulkanEngine,
         format: vk::Format,
         image_type: vk::ImageType,
-        image_extent: TextureExtent,
+        extent: vk::Extent3D,
         num_array_layers: u32,
     ) -> Result<Self, vk::Result> {
-        let extent = vk::Extent3D {
-            width: image_extent.width,
-            height: image_extent.height,
-            depth: 1,
-        };
         let image = vk_engine.device.create_image(
             &vk::ImageCreateInfo::builder()
                 .image_type(image_type)
