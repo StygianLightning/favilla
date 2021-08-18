@@ -23,9 +23,12 @@ use favilla::buffer::{StagingBufferWithDedicatedAllocation, VulkanBufferWithDedi
 use favilla::camera::Camera;
 use favilla::cleanup_queue::CleanupQueue;
 use favilla::debug_utils::DebugUtilsHelper;
+use favilla::frame_data::FrameDataManager;
 use favilla::memory::find_memory_type_index;
 use favilla::push_buffer::PushBuffer;
-use favilla::vk_engine::{FrameDataManager, SwapchainManager, VulkanEngine};
+use favilla::queue_families::DeviceQueueFamilies;
+use favilla::swapchain::SwapchainManager;
+use favilla::vk_engine::VulkanEngine;
 use favilla_examples::*;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::fmt::Subscriber;
@@ -107,8 +110,25 @@ fn main() -> anyhow::Result<()> {
             None
         };
 
-        let mut vk_engine =
-            VulkanEngine::new(&app, &window, NUM_FRAMES, window_width, window_height);
+        let surface = ash_window::create_surface(&app.entry, &app.instance, &window, None).unwrap();
+        let queue_families = favilla::queue_families::find(&app.entry, &app.instance, surface);
+        let surface_format = find_surface_format(
+            &queue_families.surface_loader,
+            surface,
+            queue_families.physical_device,
+        );
+
+        event!(Level::DEBUG, "using surface format {:?}", surface_format);
+
+        let mut vk_engine = VulkanEngine::new(
+            &app,
+            surface,
+            queue_families,
+            surface_format,
+            NUM_FRAMES,
+            window_width,
+            window_height,
+        );
 
         let mut frame_manager = FrameDataManager::new(&vk_engine);
 

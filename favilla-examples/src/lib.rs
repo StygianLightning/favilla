@@ -1,4 +1,6 @@
+use ash::extensions::khr::Surface;
 use ash::vk;
+use ash::vk::PhysicalDevice;
 use ash::vk::{PipelineLayout, ShaderModule, VertexInputRate};
 use cgmath::{Vector2, Vector4, Zero};
 use favilla::buffer::{StagingBufferWithDedicatedAllocation, VulkanBufferWithDedicatedAllocation};
@@ -289,4 +291,24 @@ pub unsafe extern "system" fn vulkan_debug_callback(
     );
 
     vk::FALSE
+}
+
+pub unsafe fn find_surface_format(
+    surface_loader: &Surface,
+    surface: vk::SurfaceKHR,
+    physical_device: PhysicalDevice,
+) -> vk::SurfaceFormatKHR {
+    let surface_formats = surface_loader
+        .get_physical_device_surface_formats(physical_device, surface)
+        .unwrap();
+
+    event!(Level::DEBUG, "supported surface formats:");
+    for surface_format in &surface_formats {
+        event!(Level::DEBUG, "{:?}", surface_format);
+    }
+
+    surface_formats
+        .into_iter()
+        .next()
+        .expect("Unable to find suitable surface format.")
 }

@@ -68,6 +68,7 @@ unsafe fn transition_layout(
 }
 
 impl Texture {
+    /// Create a new texture.
     pub unsafe fn new(
         vk_engine: &VulkanEngine,
         format: vk::Format,
@@ -103,10 +104,12 @@ impl Texture {
         })
     }
 
+    /// Get the memory requirements for this texture.
     pub unsafe fn get_memory_requirements(&self, device: &Device) -> vk::MemoryRequirements {
         device.get_image_memory_requirements(self.image)
     }
 
+    /// Bind the given memory to this texture.
     pub unsafe fn bind_memory(
         &mut self,
         vk_engine: &VulkanEngine,
@@ -118,6 +121,7 @@ impl Texture {
             .bind_image_memory(self.image, memory, offset)
     }
 
+    /// Create an image memory barrier for the image resource held by `self`.
     pub unsafe fn get_transition_layout_image_memory_barrier(
         &self,
         src_access_mask: vk::AccessFlags,
@@ -143,7 +147,11 @@ impl Texture {
             .build()
     }
 
-    // TODO expose the layout transition and the buffer copy separately - and allow to batch these updates between barriers.
+    /// Utility method for copying data from a staging buffer to `self`.
+    /// Performs a layout transition before and after copying with a single-use command buffer (using VulkanEngine::one_time_submit).
+    /// Assumes that the image will be used only as a sample source in a fragment shader.
+    /// This will use one pipeline barrier for every call.
+    /// when dealing with many images, a manual implementation to reduce the number of pipeline barriers may be beneficial.
     pub unsafe fn copy_staging_to_image<T: Copy>(
         &mut self,
         vk_engine: &VulkanEngine,
@@ -193,6 +201,7 @@ impl Texture {
         });
     }
 
+    /// Free the image resource held by `self`.
     pub unsafe fn destroy(&mut self, device: &Device) {
         device.destroy_image(self.image, None);
     }
