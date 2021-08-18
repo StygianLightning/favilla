@@ -10,7 +10,6 @@ pub mod linear_allocator;
 pub mod memory;
 pub mod push_buffer;
 pub mod queue_families;
-pub mod renderer;
 pub mod swapchain;
 pub mod texture;
 pub mod vk_engine;
