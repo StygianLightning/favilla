@@ -560,6 +560,14 @@ fn main() -> anyhow::Result<()> {
             pipeline_layout,
         );
 
+        vk_engine.device.destroy_shader_module(vertex_shader, None);
+        vk_engine
+            .device
+            .destroy_shader_module(fragment_shader, None);
+        vk_engine
+            .device
+            .destroy_shader_module(inverted_fragment_shader, None);
+
         let mut recreate_swapchain = false;
 
         event_loop.run(move |event, _, control_flow| {
@@ -606,14 +614,6 @@ fn main() -> anyhow::Result<()> {
                     vertex_buffer.destroy(&vk_engine.device);
 
                     cleanup_queue.destroy(&vk_engine.device);
-
-                    vk_engine.device.destroy_shader_module(vertex_shader, None);
-                    vk_engine
-                        .device
-                        .destroy_shader_module(fragment_shader, None);
-                    vk_engine
-                        .device
-                        .destroy_shader_module(inverted_fragment_shader, None);
 
                     vk_engine
                         .device
