@@ -530,6 +530,13 @@ fn main() -> anyhow::Result<()> {
             )
             .unwrap();
 
+        vk_engine
+            .device
+            .destroy_descriptor_set_layout(camera_descriptor_set_layout, None);
+        vk_engine
+            .device
+            .destroy_descriptor_set_layout(texture_descriptor_set_layout, None);
+
         let graphics_pipeline = create_graphics_pipeline(
             &vk_engine,
             render_pass,
@@ -619,14 +626,6 @@ fn main() -> anyhow::Result<()> {
                     for buffer in &mut camera_buffer_per_frame {
                         buffer.destroy(&vk_engine);
                     }
-
-                    vk_engine
-                        .device
-                        .destroy_descriptor_set_layout(camera_descriptor_set_layout, None);
-
-                    vk_engine
-                        .device
-                        .destroy_descriptor_set_layout(texture_descriptor_set_layout, None);
 
                     vk_engine.device.destroy_sampler(sampler, None);
 
