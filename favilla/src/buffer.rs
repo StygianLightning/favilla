@@ -95,8 +95,8 @@ impl<T> VulkanBuffer<T> {
     }
 
     /// Frees the buffer resource held by `self`.
-    pub unsafe fn destroy(&mut self, vk_engine: &VulkanEngine) {
-        vk_engine.device.destroy_buffer(self.buffer, None);
+    pub unsafe fn destroy(&mut self, device: &Device) {
+        device.destroy_buffer(self.buffer, None);
     }
 }
 
@@ -142,9 +142,9 @@ impl<T> VulkanBufferWithDedicatedAllocation<T> {
     }
 
     /// Frees the buffer and memory resources held by `self`.
-    pub unsafe fn destroy(&mut self, vk_engine: &VulkanEngine) {
-        vk_engine.device.free_memory(self.memory, None);
-        vk_engine.device.destroy_buffer(self.buffer.buffer, None);
+    pub unsafe fn destroy(&mut self, device: &Device) {
+        device.free_memory(self.memory, None);
+        device.destroy_buffer(self.buffer.buffer, None);
     }
 }
 
@@ -166,8 +166,8 @@ impl<T: Copy> StagingBuffer<T> {
     }
 
     /// Frees the buffer resource held by `self`.
-    pub unsafe fn destroy(&mut self, vk_engine: &VulkanEngine) {
-        self.buffer.destroy(vk_engine);
+    pub unsafe fn destroy(&mut self, device: &Device) {
+        self.buffer.destroy(device);
     }
 
     /// Creates a new `StagingBuffer<T>`. Maps the buffer memory for writing; it is never unmapped.
@@ -199,11 +199,9 @@ pub struct StagingBufferWithDedicatedAllocation<T: Copy> {
 
 impl<T: Copy> StagingBufferWithDedicatedAllocation<T> {
     /// Frees the buffer and memory resources held by `self`.
-    pub unsafe fn destroy(&mut self, vk_engine: &VulkanEngine) {
-        vk_engine.device.free_memory(self.memory, None);
-        vk_engine
-            .device
-            .destroy_buffer(self.buffer.buffer.buffer, None);
+    pub unsafe fn destroy(&mut self, device: &Device) {
+        device.free_memory(self.memory, None);
+        device.destroy_buffer(self.buffer.buffer.buffer, None);
     }
 
     /// Allocates a new staging buffer.

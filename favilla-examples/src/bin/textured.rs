@@ -347,7 +347,7 @@ fn main() -> anyhow::Result<()> {
             &image_one_staging_buffer.buffer,
         );
 
-        image_one_staging_buffer.destroy(&vk_engine);
+        image_one_staging_buffer.destroy(&vk_engine.device);
 
         let image_view_one = vk_engine
             .device
@@ -414,7 +414,7 @@ fn main() -> anyhow::Result<()> {
             &image_two_staging_buffer.buffer,
         );
 
-        image_two_staging_buffer.destroy(&vk_engine);
+        image_two_staging_buffer.destroy(&vk_engine.device);
 
         let image_view_two = vk_engine
             .device
@@ -598,12 +598,12 @@ fn main() -> anyhow::Result<()> {
 
                     texture_memory_allocator.destroy(&vk_engine.device);
 
-                    index_buffer.destroy(&vk_engine);
+                    index_buffer.destroy(&vk_engine.device);
 
                     for staging_buffer in &mut staging_buffer_per_frame {
-                        staging_buffer.destroy(&vk_engine);
+                        staging_buffer.destroy(&vk_engine.device);
                     }
-                    vertex_buffer.destroy(&vk_engine);
+                    vertex_buffer.destroy(&vk_engine.device);
 
                     cleanup_queue.destroy(&vk_engine.device);
 
@@ -624,7 +624,7 @@ fn main() -> anyhow::Result<()> {
                         .destroy_descriptor_pool(descriptor_pool, None);
 
                     for buffer in &mut camera_buffer_per_frame {
-                        buffer.destroy(&vk_engine);
+                        buffer.destroy(&vk_engine.device);
                     }
 
                     vk_engine.device.destroy_sampler(sampler, None);

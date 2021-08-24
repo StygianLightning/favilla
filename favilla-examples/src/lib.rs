@@ -68,7 +68,7 @@ where
             .unwrap();
     });
 
-    index_staging_buffer.destroy(&vk_engine);
+    index_staging_buffer.destroy(&vk_engine.device);
 
     index_buffer
 }
