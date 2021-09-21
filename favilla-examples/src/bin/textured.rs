@@ -762,17 +762,19 @@ fn main() -> anyhow::Result<()> {
                         },
                     ];
 
-                    let mut push_buffer_pass = push_buffer.start_pass(0).unwrap();
+                    {
+                        let mut push_buffer_pass = push_buffer.start_pass();
 
-                    for v in &vertices {
-                        push_buffer_pass.push(*v);
+                        for v in &vertices {
+                            push_buffer_pass.push(*v);
+                        }
+                        // push_buffer_pass dropped at the end of scope;
+                        // NLL makes this redundant, but it's clearer this way.
                     }
-
-                    push_buffer_pass.finish();
 
                     let staging_buffer = &mut staging_buffer_per_frame[frame as usize];
 
-                    if staging_buffer.buffer.buffer.length < push_buffer.data.len() as _ {
+                    if staging_buffer.buffer.buffer.length < push_buffer.capacity() as _ {
                         let new_staging_buffer = StagingBufferWithDedicatedAllocation::allocate(
                             &vk_engine,
                             push_buffer.capacity() as _,
@@ -795,7 +797,7 @@ fn main() -> anyhow::Result<()> {
                         cleanup_queue.queue(old_staging_buffer);
                     }
 
-                    if vertex_buffer.buffer.length < push_buffer.data.len() as _ {
+                    if vertex_buffer.buffer.length < push_buffer.capacity() as _ {
                         let new_vertex_buffer = VulkanBufferWithDedicatedAllocation::allocate(
                             &vk_engine,
                             push_buffer.capacity() as _,
@@ -823,7 +825,7 @@ fn main() -> anyhow::Result<()> {
                         cleanup_queue.queue(old_vertex_buffer);
                     }
 
-                    if index_buffer.buffer.length < push_buffer.data.len() as _ {
+                    if index_buffer.buffer.length < push_buffer.capacity() as _ {
                         let new_index_buffer = create_index_buffer(
                             &vk_engine,
                             frame_manager.command_pool,
@@ -850,7 +852,7 @@ fn main() -> anyhow::Result<()> {
                         cleanup_queue.queue(old_index_buffer);
                     }
 
-                    staging_buffer.buffer.write(&push_buffer.data);
+                    staging_buffer.buffer.write(push_buffer.data());
 
                     // Execution barrier *before* copying from the staging buffer to the vertex buffer:
                     // the vertex buffer might still be used by last frame's rendering process.
@@ -874,7 +876,7 @@ fn main() -> anyhow::Result<()> {
                             &mut vertex_buffer.buffer,
                             0,
                             0,
-                            push_buffer.data.len() as _,
+                            push_buffer.len() as _,
                         )
                         .unwrap();
 
