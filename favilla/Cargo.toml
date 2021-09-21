@@ -1,6 +1,6 @@
 [package]
 name = "favilla"
-version = "0.1.3"
+version = "0.2.0"
 edition = "2018"
 description = "A library with utilities for Vulkan programming."
 authors = ["StygianLightning <denrellum@gmail.com>"]
