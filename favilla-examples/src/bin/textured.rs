@@ -7,7 +7,7 @@ use cgmath::{vec2, vec4, Matrix4};
 use cstr::cstr;
 use std::default::Default;
 use std::ffi::{CStr, CString};
-use tracing::{event, Level};
+use tracing::{event, info, Level};
 use vk::{DependencyFlags, PipelineStageFlags};
 use vk_shader_macros::include_glsl;
 use winit::{
@@ -109,6 +109,23 @@ fn main() -> anyhow::Result<()> {
 
         let surface = ash_window::create_surface(&app.entry, &app.instance, &window, None).unwrap();
         let queue_families = favilla::queue_families::find(&app.entry, &app.instance, surface);
+
+        let mut physical_properties = Default::default();
+        app.instance.get_physical_device_properties2(
+            queue_families.physical_device,
+            &mut physical_properties,
+        );
+        let name = std::str::from_utf8(
+            &*(&physical_properties.properties.device_name[..physical_properties
+                .properties
+                .device_name
+                .iter()
+                .position(|&x| x == 0)
+                .unwrap()] as *const [i8] as *const [u8]),
+        )
+        .unwrap();
+        info!(name, "selected device");
+
         let surface_format = find_surface_format(
             &queue_families.surface_loader,
             surface,
