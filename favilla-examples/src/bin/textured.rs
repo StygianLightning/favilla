@@ -276,7 +276,7 @@ fn main() -> anyhow::Result<()> {
         let texture_one_data_size = std::mem::size_of_val(texture_one_data) as DeviceSize;
         let image_one_mem_req = image_one.get_memory_requirements(&vk_engine.device);
 
-        let total_texture_size: vk::DeviceSize = 32 * 32 * 4 * 2;
+        let total_texture_size: vk::DeviceSize = 1024 * 1024 * 16;
 
         {
             let mut index = 0;
