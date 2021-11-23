@@ -9,7 +9,6 @@ use std::default::Default;
 use std::ffi::{CStr, CString};
 use tracing::{event, info, Level};
 use vk::{DependencyFlags, PipelineStageFlags};
-use vk_shader_macros::include_glsl;
 use winit::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -32,9 +31,19 @@ use tracing_subscriber::fmt::Subscriber;
 
 const NUM_FRAMES: u32 = 2;
 
-const VERT: &[u32] = include_glsl!("shaders/tri.vert");
-const FRAG: &[u32] = include_glsl!("shaders/tri.frag", kind: frag);
-const FRAG_INVERTED: &[u32] = include_glsl!("shaders/inverted.frag", kind: frag);
+const VERT: &[u8] = include_bytes!("../../shaders/tri-vert.spv");
+const FRAG: &[u8] = include_bytes!("../../shaders/tri-frag.spv");
+const FRAG_INVERTED: &[u8] = include_bytes!("../../shaders/inverted-frag.spv");
+
+fn to_spirv_slice(bin: &[u8]) -> &[u32] {
+    assert_eq!(0, bin.len() % 4);
+    let num_words = bin.len() / 4;
+
+    unsafe {
+        #[allow(clippy::cast_ptr_alignment)]
+        core::slice::from_raw_parts(bin as *const [u8] as *const u32, num_words)
+    }
+}
 
 fn main() -> anyhow::Result<()> {
     let subscriber = Subscriber::builder()
@@ -526,13 +535,13 @@ fn main() -> anyhow::Result<()> {
         event!(Level::DEBUG, "all texture stuff done");
         // TEXTURE FUN END
 
-        let vertex_shader_info = vk::ShaderModuleCreateInfo::builder().code(VERT);
+        let vertex_shader_info = vk::ShaderModuleCreateInfo::builder().code(to_spirv_slice(VERT));
         let vertex_shader = vk_engine
             .device
             .create_shader_module(&vertex_shader_info, None)
             .unwrap();
 
-        let fragment_shader_info = vk::ShaderModuleCreateInfo::builder().code(FRAG);
+        let fragment_shader_info = vk::ShaderModuleCreateInfo::builder().code(to_spirv_slice(FRAG));
         let fragment_shader = vk_engine
             .device
             .create_shader_module(&fragment_shader_info, None)
@@ -564,7 +573,7 @@ fn main() -> anyhow::Result<()> {
         );
 
         let inverted_fragment_shader_info =
-            vk::ShaderModuleCreateInfo::builder().code(FRAG_INVERTED);
+            vk::ShaderModuleCreateInfo::builder().code(to_spirv_slice(FRAG_INVERTED));
         let inverted_fragment_shader = vk_engine
             .device
             .create_shader_module(&inverted_fragment_shader_info, None)
