@@ -108,7 +108,8 @@ fn main() -> anyhow::Result<()> {
         };
 
         let surface = ash_window::create_surface(&app.entry, &app.instance, &window, None).unwrap();
-        let queue_families = favilla::queue_families::find(&app.entry, &app.instance, surface);
+        let queue_families =
+            favilla::queue_families::select(&app.entry, &app.instance, surface, None);
 
         let mut physical_properties = Default::default();
         app.instance.get_physical_device_properties2(
