@@ -2,7 +2,7 @@ use crate::vk_engine::VulkanEngine;
 use ash::extensions::khr::Swapchain;
 use ash::vk::RenderPass;
 use ash::{vk, Device, Instance};
-use tracing::{event, Level};
+use tracing::{event, info, Level};
 
 /// Helper for swapchain management.
 pub struct SwapchainManager {
@@ -28,6 +28,8 @@ impl SwapchainManager {
             .find(|mode| **mode == vk::PresentModeKHR::MAILBOX)
             .unwrap_or(&vk::PresentModeKHR::FIFO)
             .clone();
+
+        info!("{:?}", present_mode);
 
         event!(
             Level::DEBUG,

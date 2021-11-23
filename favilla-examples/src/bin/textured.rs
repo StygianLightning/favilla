@@ -108,7 +108,8 @@ fn main() -> anyhow::Result<()> {
         };
 
         let surface = ash_window::create_surface(&app.entry, &app.instance, &window, None).unwrap();
-        let queue_families = favilla::queue_families::find(&app.entry, &app.instance, surface);
+        let queue_families =
+            favilla::queue_families::select(&app.entry, &app.instance, surface, None);
 
         let mut physical_properties = Default::default();
         app.instance.get_physical_device_properties2(
@@ -140,12 +141,23 @@ fn main() -> anyhow::Result<()> {
             ..Default::default()
         };
 
+        let priorities = [1.0];
+
+        let queue_info = [vk::DeviceQueueCreateInfo::builder()
+            .queue_family_index(queue_families.queue_family_index)
+            .queue_priorities(&priorities)
+            .build()];
+
+        let device_create_info = vk::DeviceCreateInfo::builder()
+            .queue_create_infos(&queue_info)
+            .enabled_extension_names(&device_extension_names_raw)
+            .enabled_features(&physical_device_features);
+
         let mut vk_engine = VulkanEngine::new(
             &app,
             surface,
-            &device_extension_names_raw,
-            physical_device_features,
             queue_families,
+            device_create_info,
             surface_format,
             NUM_FRAMES,
             vk::Extent2D {

@@ -8,7 +8,6 @@ use crate::queue_families::DeviceQueueFamilies;
 use crate::swapchain::SwapchainManager;
 use ash::prelude::VkResult;
 use std::default::Default;
-use std::os::raw::c_char;
 
 /// Holds commonly used Vulkan structures and provides some utility methods.
 pub struct VulkanEngine {
@@ -34,9 +33,8 @@ impl VulkanEngine {
     pub unsafe fn new(
         app: &App,
         surface: SurfaceKHR,
-        device_extension_names_raw: &[*const c_char],
-        features: vk::PhysicalDeviceFeatures,
         queue_families: DeviceQueueFamilies,
+        device_create_info: vk::DeviceCreateInfoBuilder,
         surface_format: vk::SurfaceFormatKHR,
         num_frames: u32,
         window_extent: vk::Extent2D,
@@ -46,18 +44,6 @@ impl VulkanEngine {
             queue_family_index,
             surface_loader,
         } = queue_families;
-
-        let priorities = [1.0];
-
-        let queue_info = [vk::DeviceQueueCreateInfo::builder()
-            .queue_family_index(queue_family_index)
-            .queue_priorities(&priorities)
-            .build()];
-
-        let device_create_info = vk::DeviceCreateInfo::builder()
-            .queue_create_infos(&queue_info)
-            .enabled_extension_names(&device_extension_names_raw)
-            .enabled_features(&features);
 
         let device: Device = app
             .instance
