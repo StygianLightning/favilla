@@ -27,7 +27,7 @@ impl App {
             .map(|name| CString::new(*name).unwrap())
             .collect::<Vec<_>>();
 
-        let layers_names_raw: Vec<*const i8> = layer_names
+        let layers_names_raw: Vec<_> = layer_names
             .iter()
             .map(|raw_name| raw_name.as_ptr())
             .collect();

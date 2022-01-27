@@ -7,6 +7,7 @@ use cgmath::{vec2, vec4, Matrix4};
 use cstr::cstr;
 use std::default::Default;
 use std::ffi::{CStr, CString};
+use std::os::raw::c_char;
 use tracing::{event, info, Level};
 use vk::{DependencyFlags, PipelineStageFlags};
 use vk_shader_macros::include_glsl;
@@ -122,7 +123,7 @@ fn main() -> anyhow::Result<()> {
                 .device_name
                 .iter()
                 .position(|&x| x == 0)
-                .unwrap()] as *const [i8] as *const [u8]),
+                .unwrap()] as *const [c_char] as *const [u8]),
         )
         .unwrap();
         info!(name, "selected device");

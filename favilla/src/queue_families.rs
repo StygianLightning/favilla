@@ -1,6 +1,7 @@
 use ash::extensions::khr::Surface;
 use ash::vk;
 use ash::vk::{PhysicalDevice, PhysicalDeviceProperties, PhysicalDeviceType};
+use std::os::raw::c_char;
 use tracing::info;
 
 /// A struct holding a physical device, a queue family index and a surface.
@@ -60,7 +61,7 @@ pub unsafe fn select(
                         let name = std::str::from_utf8(
                             &*(&props.device_name
                                 [..props.device_name.iter().position(|&x| x == 0).unwrap()]
-                                as *const [i8] as *const [u8]),
+                                as *const [c_char] as *const [u8]),
                         )
                         .unwrap();
 
