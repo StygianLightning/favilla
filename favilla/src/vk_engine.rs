@@ -34,7 +34,7 @@ impl VulkanEngine {
         app: &App,
         surface: SurfaceKHR,
         queue_families: DeviceQueueFamilies,
-        device_create_info: vk::DeviceCreateInfoBuilder,
+        device: Device,
         surface_format: vk::SurfaceFormatKHR,
         num_frames: u32,
         window_extent: vk::Extent2D,
@@ -44,11 +44,6 @@ impl VulkanEngine {
             queue_family_index,
             surface_loader,
         } = queue_families;
-
-        let device: Device = app
-            .instance
-            .create_device(physical_device, &device_create_info, None)
-            .unwrap();
 
         // We might want to add support for separate present and graphics queues,
         // but it seems there's currently no hardware that supports graphics but not presenting.

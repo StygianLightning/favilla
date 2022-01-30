@@ -153,11 +153,17 @@ fn main() -> anyhow::Result<()> {
             .enabled_extension_names(&device_extension_names_raw)
             .enabled_features(&physical_device_features);
 
+        let device = app.instance.create_device(
+            queue_families.physical_device,
+            &device_create_info,
+            None,
+        )?;
+
         let mut vk_engine = VulkanEngine::new(
             &app,
             surface,
             queue_families,
-            device_create_info,
+            device,
             surface_format,
             NUM_FRAMES,
             vk::Extent2D {
