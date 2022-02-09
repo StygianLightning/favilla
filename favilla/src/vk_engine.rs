@@ -30,6 +30,8 @@ pub struct VulkanEngine {
 
 impl VulkanEngine {
     /// Create a new `VulkanEngine`.
+    /// # Safety
+    /// Device, queue and surface must be compatible with each other.
     pub unsafe fn new(
         app: &App,
         surface: SurfaceKHR,
@@ -84,6 +86,9 @@ impl VulkanEngine {
         }
     }
 
+    /// Waits until the device is idle, then destroys the device and surface loader.
+    /// # Safety
+    /// All resources dependent on the device must have been cleaned up.
     pub unsafe fn destroy(&mut self) {
         self.device.device_wait_idle().unwrap();
         self.device.destroy_device(None);
@@ -91,6 +96,8 @@ impl VulkanEngine {
     }
 
     /// Perform a new memory allocation. Panics if the allocation fails.
+    /// # Safety
+    /// Must not exceed memory limitations.
     pub unsafe fn allocate_memory(
         &self,
         memory_req: vk::MemoryRequirements,
@@ -101,6 +108,8 @@ impl VulkanEngine {
     }
 
     /// Perform a new memory allocation.
+    /// # Safety
+    /// Must not exceed memory limitations.
     pub unsafe fn try_allocate_memory(
         &self,
         memory_req: vk::MemoryRequirements,
@@ -120,7 +129,9 @@ impl VulkanEngine {
         self.current_frame = (self.current_frame + 1) % self.num_frames;
     }
 
-    /// Recreate the swapchain. This will wait until the device is idle. Uses `SwapchainManager` under the hood.
+    /// Recreate the swapchain. This will wait until the device is idle. Uses `SwapchainManager::new()` under the hood.
+    /// # Safety
+    /// Must be able to create a new swapchain with the given parameters.
     pub unsafe fn recreate_swapchain(
         &mut self,
         instance: &Instance,
@@ -141,10 +152,12 @@ impl VulkanEngine {
         };
 
         swapchain_manager.destroy(&self.device);
-        *swapchain_manager = SwapchainManager::new(&instance, self, render_pass);
+        *swapchain_manager = SwapchainManager::new(instance, self, render_pass);
     }
 
     /// Allocates descriptor sets.
+    /// # Safety
+    /// Allocation of descriptor sets with the given pool must be allowed.
     pub unsafe fn allocate_descriptor_sets(
         &self,
         set_layouts: &[vk::DescriptorSetLayout],
@@ -159,7 +172,9 @@ impl VulkanEngine {
     }
 
     /// Utility function for executing commands with a one time use command buffer (allocated every time).
-    pub unsafe fn one_time_submit<F>(&self, command_pool: vk::CommandPool, f: F) -> ()
+    /// # Safety
+    /// Must be called on a thread able to submit to the queue.
+    pub unsafe fn one_time_submit<F>(&self, command_pool: vk::CommandPool, f: F)
     where
         F: FnOnce(vk::CommandBuffer),
     {

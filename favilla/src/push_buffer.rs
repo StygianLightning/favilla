@@ -18,6 +18,11 @@ impl<T> PushBuffer<T> {
         self.data.len()
     }
 
+    /// True iff the buffer is empty.
+    pub fn is_empty(&self) -> bool {
+        self.data.len() == 0
+    }
+
     /// Get the total allocated capacity of the buffer.
     pub fn capacity(&self) -> usize {
         self.data.capacity()

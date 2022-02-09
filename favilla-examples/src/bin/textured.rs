@@ -313,20 +313,22 @@ fn main() -> anyhow::Result<()> {
 
         let total_texture_size: vk::DeviceSize = 1024 * 1024 * 16;
 
+        for (index, mem_type) in vk_engine
+            .device_memory_properties
+            .memory_types
+            .iter()
+            .enumerate()
         {
-            let mut index = 0;
-            for mem_type in &vk_engine.device_memory_properties.memory_types {
-                event!(Level::DEBUG, "Memory index {} type: {:?}", index, mem_type);
-                index += 1;
-            }
+            event!(Level::DEBUG, "Memory index {} type: {:?}", index, mem_type);
         }
 
+        for (index, heap) in vk_engine
+            .device_memory_properties
+            .memory_heaps
+            .iter()
+            .enumerate()
         {
-            let mut index = 0;
-            for heap in &vk_engine.device_memory_properties.memory_heaps {
-                event!(Level::DEBUG, "Memory heap index {}: {:?}", index, heap);
-                index += 1;
-            }
+            event!(Level::DEBUG, "Memory heap index {}: {:?}", index, heap);
         }
 
         let image_memory_type_index = find_memory_type_index(

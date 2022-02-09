@@ -16,6 +16,8 @@ impl SwapchainManager {
     /// This will create one framebuffer for every in-flight frame.
     /// Imageless framebuffers are not supported yet.
     /// Called by `VulkanEngine::recreate_swapchain`.
+    /// # Safety
+    /// Requires a valid device and render pass.
     pub unsafe fn new(instance: &Instance, engine: &VulkanEngine, render_pass: RenderPass) -> Self {
         let swapchain_loader = Swapchain::new(instance, &engine.device);
 
@@ -23,11 +25,10 @@ impl SwapchainManager {
             .surface_loader
             .get_physical_device_surface_present_modes(engine.physical_device, engine.surface)
             .unwrap();
-        let present_mode = present_modes
+        let present_mode = *present_modes
             .iter()
             .find(|mode| **mode == vk::PresentModeKHR::MAILBOX)
-            .unwrap_or(&vk::PresentModeKHR::FIFO)
-            .clone();
+            .unwrap_or(&vk::PresentModeKHR::FIFO);
 
         info!("{:?}", present_mode);
 
@@ -121,6 +122,8 @@ impl SwapchainManager {
 
 impl SwapchainManager {
     /// Frees all resources held by `self`.
+    /// # Safety
+    /// All resources must not be used anymore.
     pub unsafe fn destroy(&mut self, device: &Device) {
         for swapchain_data in &mut self.swapchain_data {
             swapchain_data.destroy(device);
@@ -139,6 +142,8 @@ pub struct PerSwapchainImage {
 
 impl PerSwapchainImage {
     /// Frees the resources held by `self`.
+    /// # Safety
+    /// All resources must not be used anymore.
     pub unsafe fn destroy(&mut self, device: &Device) {
         device.destroy_framebuffer(self.framebuffer, None);
         device.destroy_image_view(self.present_image_view, None);

@@ -36,6 +36,8 @@ pub fn get_aligned_offset(offset: u64, alignment: u64) -> u64 {
 
 impl LinearAllocator {
     /// Create a new linear allocator with the given memory size and memory type index.
+    /// # Safety
+    /// Requires a valid device with sufficient memory.
     pub unsafe fn new(
         device: &Device,
         size: DeviceSize,
@@ -57,6 +59,8 @@ impl LinearAllocator {
     }
 
     /// Try to get a free chunk of memory from the allocator.
+    /// # Safety
+    /// Memory must not have been freed.
     pub unsafe fn allocate(
         &mut self,
         memory_req: MemoryRequirements,
@@ -77,6 +81,8 @@ impl LinearAllocator {
     }
 
     /// Frees the allocator's memory.
+    /// # Safety
+    /// Memory must not be used anymore.
     pub unsafe fn destroy(&mut self, device: &Device) {
         device.free_memory(self.memory, None);
     }

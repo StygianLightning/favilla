@@ -22,6 +22,10 @@ pub struct DebugUtilsHelper {
 }
 
 impl DebugUtilsHelper {
+    /// Creates a new DebugUtilsHelper.
+    /// Panics if creation fails.
+    /// # Safety
+    /// Requires support for DebugUtils.
     pub unsafe fn new(
         entry: &Entry,
         instance: &Instance,
@@ -47,6 +51,9 @@ impl DebugUtilsHelper {
         }
     }
 
+    /// Set the name of an object.
+    /// # Safety
+    /// Requires support for DebugUtils.
     pub unsafe fn set_object_name(
         &self,
         device: &Device,
@@ -64,6 +71,8 @@ impl DebugUtilsHelper {
         )
     }
 
+    /// # Safety
+    /// DebugUtils must be OK to destroy.
     pub unsafe fn destroy(&mut self) {
         self.debug_utils
             .destroy_debug_utils_messenger(self.debug_call_back, None);

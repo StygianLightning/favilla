@@ -26,7 +26,9 @@ pub enum BufferCopyError {
 }
 
 impl<T> VulkanBuffer<T> {
-    /// Copy data from one Vulkan buffer to another. Requires correct usage flags.
+    /// Copy data from one Vulkan buffer to another.
+    /// # Safety
+    /// Requires correct usage flags.
     pub unsafe fn copy(
         &mut self,
         vk_engine: &VulkanEngine,
@@ -56,7 +58,9 @@ impl<T> VulkanBuffer<T> {
         }
     }
 
-    /// Creates a new `VulkanBuffer`.
+    /// Creates a new `VulkanBuffer`. Panics if creation fails.
+    /// # Safety
+    /// Requires a valid device and sufficient device memory.
     pub unsafe fn new(
         vk_engine: &VulkanEngine,
         length: u64,
@@ -84,11 +88,15 @@ impl<T> VulkanBuffer<T> {
     }
 
     /// Get the memory requirements for `self`.
+    /// # Safety
+    /// Buffer and device have to be valid.
     pub unsafe fn get_memory_requirements(&self, device: &Device) -> vk::MemoryRequirements {
         device.get_buffer_memory_requirements(self.buffer)
     }
 
     /// Bind memory to the Vulkan buffer held by `self`.
+    /// # Safety
+    /// Requires a valid device and memory region.
     pub unsafe fn bind_memory(
         &mut self,
         engine: &VulkanEngine,
@@ -102,6 +110,8 @@ impl<T> VulkanBuffer<T> {
     }
 
     /// Frees the buffer resource held by `self`.
+    /// # Safety
+    /// Buffer must not be in use anymore.
     pub unsafe fn destroy(&mut self, device: &Device) {
         device.destroy_buffer(self.buffer, None);
     }
@@ -115,6 +125,8 @@ pub struct VulkanBufferWithDedicatedAllocation<T> {
 
 impl<T> VulkanBufferWithDedicatedAllocation<T> {
     /// Allocates a new buffer.
+    /// # Safety
+    /// Requires a valid device with sufficient memory.
     pub unsafe fn allocate(
         vk_engine: &VulkanEngine,
         length: u64,
@@ -143,12 +155,14 @@ impl<T> VulkanBufferWithDedicatedAllocation<T> {
         );
 
         let memory = vk_engine.allocate_memory(mem_req, memory_type_index);
-        buffer.bind_memory(&vk_engine, memory, 0);
+        buffer.bind_memory(vk_engine, memory, 0);
 
         Self { memory, buffer }
     }
 
     /// Frees the buffer and memory resources held by `self`.
+    /// # Safety
+    /// The memory and buffer must not be used anymore.
     pub unsafe fn destroy(&mut self, device: &Device) {
         device.free_memory(self.memory, None);
         device.destroy_buffer(self.buffer.buffer, None);
@@ -163,6 +177,8 @@ pub struct StagingBuffer<T: Copy> {
 
 impl<T: Copy> StagingBuffer<T> {
     /// Write the data to the staging buffer.
+    /// # Safety
+    /// The buffer must not be accessed without proper synchronisation.
     pub unsafe fn write(&mut self, data: &[T]) {
         let mut slice = Align::new(
             self.buffer_ptr,
@@ -173,11 +189,15 @@ impl<T: Copy> StagingBuffer<T> {
     }
 
     /// Frees the buffer resource held by `self`.
+    /// # Safety
+    /// The buffer must not be used anymore.
     pub unsafe fn destroy(&mut self, device: &Device) {
         self.buffer.destroy(device);
     }
 
     /// Creates a new `StagingBuffer<T>`. Maps the buffer memory for writing; it is never unmapped.
+    /// # Safety
+    /// Requires sufficient memory
     pub unsafe fn new(
         vk_engine: &VulkanEngine,
         buffer: VulkanBuffer<T>,
@@ -206,12 +226,16 @@ pub struct StagingBufferWithDedicatedAllocation<T: Copy> {
 
 impl<T: Copy> StagingBufferWithDedicatedAllocation<T> {
     /// Frees the buffer and memory resources held by `self`.
+    /// # Safety
+    /// The buffer and memory must not be used anymore.
     pub unsafe fn destroy(&mut self, device: &Device) {
         device.free_memory(self.memory, None);
         device.destroy_buffer(self.buffer.buffer.buffer, None);
     }
 
     /// Allocates a new staging buffer.
+    /// # Safety
+    /// Requires a valid device with sufficient memory.
     pub unsafe fn allocate(
         vk_engine: &VulkanEngine,
         length: u64,

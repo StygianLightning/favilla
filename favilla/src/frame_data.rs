@@ -8,6 +8,10 @@ pub struct FrameDataManager {
 }
 
 impl FrameDataManager {
+    /// Creates a new FrameDataManager, including command pool and synchronistation primitives per
+    /// in-flight frame.
+    /// # Safety
+    /// Must be able to create command buffers, fences and semaphores.
     pub unsafe fn new(vk_engine: &VulkanEngine) -> Self {
         let pool_create_info = vk::CommandPoolCreateInfo::builder()
             .flags(
@@ -71,6 +75,8 @@ impl FrameDataManager {
     }
 
     /// Frees all resources held by `self`.
+    /// # Safety
+    /// Resources must not be used anymore.
     pub unsafe fn destroy(&mut self, device: &Device) {
         device.destroy_command_pool(self.command_pool, None);
         for frame_data in &mut self.frame_data {
@@ -89,6 +95,8 @@ pub struct PerFrameData {
 
 impl PerFrameData {
     /// Frees all resources held by `self`.
+    /// # Safety
+    /// Resources must not be used anymore.
     pub unsafe fn destroy(&mut self, device: &Device) {
         device.destroy_semaphore(self.image_acquired_semaphore, None);
         device.destroy_semaphore(self.render_complete_semaphore, None);

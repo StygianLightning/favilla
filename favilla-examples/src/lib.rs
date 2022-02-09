@@ -27,6 +27,9 @@ impl Default for Vertex {
     }
 }
 
+/// # Safety
+/// Requires sufficient memory to be available.
+/// Can only be called on the thread that is able to submit to the given command pool.
 pub unsafe fn create_index_buffer<F>(
     vk_engine: &VulkanEngine,
     command_pool: vk::CommandPool,
@@ -37,14 +40,14 @@ where
     F: Fn(u32) -> u32,
 {
     let mut index_staging_buffer = StagingBufferWithDedicatedAllocation::allocate(
-        &vk_engine,
+        vk_engine,
         length as _,
         vk::BufferUsageFlags::TRANSFER_SRC,
         vk::SharingMode::EXCLUSIVE,
         vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
     );
     let mut index_buffer = VulkanBufferWithDedicatedAllocation::allocate(
-        &vk_engine,
+        vk_engine,
         length as _,
         vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::INDEX_BUFFER,
         vk::SharingMode::EXCLUSIVE,
@@ -58,7 +61,7 @@ where
             .buffer
             .buffer
             .copy(
-                &vk_engine,
+                vk_engine,
                 cmd_buffer,
                 &mut index_buffer.buffer,
                 0,
@@ -73,6 +76,8 @@ where
     index_buffer
 }
 
+/// # Safety
+/// Requires a valid device.
 pub unsafe fn create_render_pass(vk_engine: &VulkanEngine) -> vk::RenderPass {
     let renderpass_attachments = [vk::AttachmentDescription {
         format: vk_engine.surface_format.format,
@@ -113,6 +118,8 @@ pub unsafe fn create_render_pass(vk_engine: &VulkanEngine) -> vk::RenderPass {
         .unwrap()
 }
 
+/// # Safety
+/// Requires a valid device and appropriate shaders.
 pub unsafe fn create_graphics_pipeline(
     vk_engine: &VulkanEngine,
     render_pass: vk::RenderPass,
@@ -259,6 +266,8 @@ pub unsafe fn create_graphics_pipeline(
     graphics_pipelines[0]
 }
 
+/// # Safety
+/// Requires debug callback support.
 pub unsafe extern "system" fn vulkan_debug_callback(
     message_severity: vk::DebugUtilsMessageSeverityFlagsEXT,
     message_type: vk::DebugUtilsMessageTypeFlagsEXT,
@@ -293,6 +302,8 @@ pub unsafe extern "system" fn vulkan_debug_callback(
     vk::FALSE
 }
 
+/// # Safety
+/// The given surface has to be compatible with the given device.
 pub unsafe fn find_surface_format(
     surface_loader: &Surface,
     surface: vk::SurfaceKHR,

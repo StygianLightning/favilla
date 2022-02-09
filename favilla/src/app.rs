@@ -1,4 +1,3 @@
-
 use ash::Entry;
 use ash::{vk, Instance};
 use std::error::Error;
@@ -17,6 +16,8 @@ pub struct App {
 }
 
 impl App {
+    /// # Safety
+    /// Creates an Entry instance; requires Vulkan support.
     pub unsafe fn new(entry: Entry, settings: AppSettings<'_>) -> Result<Self, Box<dyn Error>> {
         let app_name = CString::new(settings.name)?;
 
@@ -53,6 +54,8 @@ impl App {
         Ok(Self { entry, instance })
     }
 
+    /// # Safety
+    /// Make sure all necessary resources have been cleaned up beforehand.
     pub unsafe fn destroy(&mut self) {
         self.instance.destroy_instance(None);
     }

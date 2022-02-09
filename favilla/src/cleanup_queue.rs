@@ -47,6 +47,9 @@ impl CleanupQueue {
         resource.queue(self);
     }
 
+    /// Ticks the Cleanup Queue and deletes all resources that have been ticked `num_frames` times,
+    /// # Safety
+    /// Resources must be OK to free.
     pub unsafe fn tick(&mut self, device: &ash::Device) {
         let index = self.current_frame_index;
 
@@ -55,6 +58,9 @@ impl CleanupQueue {
         self.current_frame_index = (self.current_frame_index + 1) % self.num_frames()
     }
 
+    /// Cleans up all resources immediately.
+    /// # Safety
+    /// All resources must be OK to free.
     pub unsafe fn destroy(&mut self, device: &ash::Device) {
         for frame in &mut self.frame_queue {
             frame.destroy(device);

@@ -14,8 +14,11 @@ pub struct Texture {
     pub num_array_layers: u32,
 }
 
-/// Utility function for copying the content of a buffer to an image. The image has to be in a format suitable for a transfer.
+/// Utility function for copying the content of a buffer to an image.
 /// The copy command is issued to the given command buffer.
+/// # Safety
+/// The image has to be in a format suitable for a transfer.
+/// Access to the image must be synchronized properly.
 pub unsafe fn copy_buffer_to_image(
     device: &Device,
     command_buffer: vk::CommandBuffer,
@@ -47,6 +50,8 @@ pub unsafe fn copy_buffer_to_image(
 }
 
 /// Utility function for transitioning the layout of the given images using a pipeline barrier.
+/// # Safety
+/// Pipeline barrier requirements must be met.
 unsafe fn transition_layout(
     device: &Device,
     command_buffer: vk::CommandBuffer,
@@ -67,6 +72,8 @@ unsafe fn transition_layout(
 
 impl Texture {
     /// Create a new texture.
+    /// # Safety
+    /// Device must be valid.
     pub unsafe fn new(
         vk_engine: &VulkanEngine,
         format: vk::Format,
@@ -98,11 +105,15 @@ impl Texture {
     }
 
     /// Get the memory requirements for this texture.
+    /// # Safety
+    /// Device and image must be valid.
     pub unsafe fn get_memory_requirements(&self, device: &Device) -> vk::MemoryRequirements {
         device.get_image_memory_requirements(self.image)
     }
 
     /// Bind the given memory to this texture.
+    /// # Safety
+    /// Device and memory region must be valid.
     pub unsafe fn bind_memory(
         &mut self,
         vk_engine: &VulkanEngine,
@@ -115,7 +126,7 @@ impl Texture {
     }
 
     /// Create an image memory barrier for the image resource held by `self`.
-    pub unsafe fn get_transition_layout_image_memory_barrier(
+    pub fn get_transition_layout_image_memory_barrier(
         &self,
         src_access_mask: vk::AccessFlags,
         dst_access_mask: vk::AccessFlags,
@@ -144,7 +155,13 @@ impl Texture {
     /// Performs a layout transition before and after copying with a single-use command buffer (using VulkanEngine::one_time_submit).
     /// Assumes that the image will be used only as a sample source in a fragment shader.
     /// This will use one pipeline barrier for every call.
-    /// when dealing with many images, a manual implementation to reduce the number of pipeline barriers may be beneficial.
+    /// When dealing with many images, a manual implementation may be beneficial for performance
+    /// by reducing the number of pipeline barriers
+    ///
+    /// # Safety
+    /// Must be called on the thread able to submit command buffers to the given command pool.
+    /// The default values for synchronization used must match the actual usage of the buffer and
+    /// image; otherwise, race conditions on the device may occur.
     pub unsafe fn copy_staging_to_image<T: Copy>(
         &mut self,
         vk_engine: &VulkanEngine,
@@ -195,6 +212,8 @@ impl Texture {
     }
 
     /// Free the image resource held by `self`.
+    /// # Safety
+    /// Image must not be used anymore.
     pub unsafe fn destroy(&mut self, device: &Device) {
         device.destroy_image(self.image, None);
     }

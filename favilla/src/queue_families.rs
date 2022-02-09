@@ -1,8 +1,6 @@
 use ash::extensions::khr::Surface;
 use ash::vk;
-use ash::vk::{
-    PhysicalDevice, PhysicalDeviceProperties, PhysicalDeviceType, QueueFamilyProperties,
-};
+use ash::vk::{PhysicalDevice, PhysicalDeviceProperties, PhysicalDeviceType};
 use tracing::info;
 
 /// A struct holding a physical device, a queue family index and a surface.
@@ -15,6 +13,12 @@ pub struct DeviceQueueFamilies {
     pub surface_loader: Surface,
 }
 
+/// Function with a default implementation to get a suitable queue family;
+/// selects the first discrete gpu unless an index is specified,
+/// in which case the candidate device with the given index is used.
+/// Devices without support for graphics or the given surface are ignored.
+/// # Safety
+/// The given instance must be valid and compatible with the given surface.
 pub unsafe fn select(
     entry: &ash::Entry,
     instance: &ash::Instance,
@@ -30,7 +34,6 @@ pub unsafe fn select(
         physical_device: PhysicalDevice,
         queue_family_index: usize,
         physical_device_properties: PhysicalDeviceProperties,
-        queue_family_properties: QueueFamilyProperties,
     }
 
     // Select device with given index that supports graphics;
@@ -42,7 +45,7 @@ pub unsafe fn select(
                 .get_physical_device_queue_family_properties(*physical_device)
                 .iter()
                 .enumerate()
-                .filter_map(|(queue_family_index, ref info)| {
+                .find_map(|(queue_family_index, ref info)| {
                     let supports_graphic_and_surface =
                         info.queue_flags.contains(vk::QueueFlags::GRAPHICS)
                             && surface_loader
@@ -66,13 +69,11 @@ pub unsafe fn select(
                             physical_device: *physical_device,
                             queue_family_index,
                             physical_device_properties: props,
-                            queue_family_properties: *info.clone(),
                         })
                     } else {
                         None
                     }
                 })
-                .next()
         })
         .collect::<Vec<_>>();
 
@@ -80,20 +81,17 @@ pub unsafe fn select(
         devices_and_queues
             .iter()
             .enumerate()
-            .filter(
+            .find(
                 |(
-                    i,
+                    _,
                     Candidate {
-                        physical_device,
-                        queue_family_index: index,
                         physical_device_properties,
-                        queue_family_properties,
+                        ..
                     },
                 )| {
                     physical_device_properties.device_type == PhysicalDeviceType::DISCRETE_GPU
                 },
             )
-            .next()
             .map(|(i, _)| i)
             .unwrap_or(0)
     });
