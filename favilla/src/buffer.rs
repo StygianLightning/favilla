@@ -7,6 +7,7 @@ use ash::{vk, Device};
 use std::ffi::c_void;
 use std::marker::PhantomData;
 use std::mem::align_of;
+use thiserror::Error;
 use tracing::{event, Level};
 
 /// Typed Vulkan buffer.
@@ -16,6 +17,12 @@ pub struct VulkanBuffer<T> {
     pub device_size: u64,
     pub length: u64,
     phantom: PhantomData<T>,
+}
+
+#[derive(Copy, Clone, Error, Debug)]
+pub enum BufferCopyError {
+    #[error("")]
+    SpecifiedLengthExceedsBounds,
 }
 
 impl<T> VulkanBuffer<T> {
@@ -28,12 +35,12 @@ impl<T> VulkanBuffer<T> {
         src_offset: u64,
         dst_offset: u64,
         length: u64,
-    ) -> Result<(), ()>
+    ) -> Result<(), BufferCopyError>
     where
         T: Copy,
     {
         if self.length < length || dst.length < length {
-            Err(())
+            Err(BufferCopyError::SpecifiedLengthExceedsBounds)
         } else {
             vk_engine.device.cmd_copy_buffer(
                 command_buffer,
