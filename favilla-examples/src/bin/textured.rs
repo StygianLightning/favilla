@@ -1,22 +1,11 @@
 use ash::extensions::ext::DebugUtils;
+use ash::extensions::khr::Swapchain;
 use ash::vk::{
     DeviceSize, Handle, ImageViewCreateInfo, IndexType, MemoryPropertyFlags, SharingMode,
 };
 use ash::{vk, Entry};
 use cgmath::{vec2, vec4, Matrix4};
 use cstr::cstr;
-use std::default::Default;
-use std::ffi::{CStr, CString};
-use std::os::raw::c_char;
-use tracing::{event, info, Level};
-use vk::{DependencyFlags, PipelineStageFlags};
-use vk_shader_macros::include_glsl;
-use winit::{
-    event::{Event, WindowEvent},
-    event_loop::{ControlFlow, EventLoop},
-};
-
-use ash::extensions::khr::Swapchain;
 use favilla::app::{App, AppSettings};
 use favilla::buffer::{StagingBufferWithDedicatedAllocation, VulkanBufferWithDedicatedAllocation};
 use favilla::camera::Camera;
@@ -28,8 +17,18 @@ use favilla::push_buffer::PushBuffer;
 use favilla::swapchain::SwapchainManager;
 use favilla::vk_engine::VulkanEngine;
 use favilla_examples::*;
+use std::default::Default;
+use std::ffi::CStr;
+use std::os::raw::c_char;
 use tracing::level_filters::LevelFilter;
+use tracing::{event, info, Level};
 use tracing_subscriber::fmt::Subscriber;
+use vk::{DependencyFlags, PipelineStageFlags};
+use vk_shader_macros::include_glsl;
+use winit::{
+    event::{Event, WindowEvent},
+    event_loop::{ControlFlow, EventLoop},
+};
 
 const NUM_FRAMES: u32 = 2;
 
@@ -59,9 +58,9 @@ fn main() -> anyhow::Result<()> {
         .expect("Could not build window");
 
     unsafe {
-        let entry = Entry::new()?;
+        let entry = Entry::linked();
         let instance_extensions = entry
-            .enumerate_instance_extension_properties()
+            .enumerate_instance_extension_properties(None)
             .expect("could not enumerate instance extensions");
 
         event!(Level::DEBUG, "Available instance extensions:");
@@ -69,12 +68,9 @@ fn main() -> anyhow::Result<()> {
             event!(Level::DEBUG, "{:?}", instance_extension);
         }
 
-        let mut required_extensions: Vec<CString> =
-            ash_window::enumerate_required_extensions(&window)
-                .expect("enumerating required extensions for ash window failed")
-                .into_iter()
-                .map(|n| n.to_owned())
-                .collect::<_>();
+        let mut required_extensions = ash_window::enumerate_required_extensions(&window)
+            .expect("enumerating required extensions for ash window failed")
+            .to_vec();
 
         let debug_utils_supported = instance_extensions
             .iter()
@@ -82,7 +78,7 @@ fn main() -> anyhow::Result<()> {
 
         if debug_utils_supported {
             event!(Level::DEBUG, "Enabling debug utils");
-            required_extensions.push(DebugUtils::name().to_owned());
+            required_extensions.push(DebugUtils::name().as_ptr());
         } else {
             event!(Level::DEBUG, "No support for debug utils");
         }

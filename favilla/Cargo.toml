@@ -10,7 +10,7 @@ repository = "https://github.com/StygianLightning/favilla"
 keywords = ["vulkan"]
 
 [dependencies]
-ash = "0.33"
+ash = "0.37"
 cgmath = "0.18"
 thiserror = "1.0"
 tracing = "0.1"

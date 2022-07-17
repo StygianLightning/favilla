@@ -37,7 +37,11 @@ impl DebugUtilsHelper {
                     | vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
                     | vk::DebugUtilsMessageSeverityFlagsEXT::INFO,
             )
-            .message_type(vk::DebugUtilsMessageTypeFlagsEXT::all())
+            .message_type(
+                vk::DebugUtilsMessageTypeFlagsEXT::GENERAL
+                    | vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE
+                    | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION,
+            )
             .pfn_user_callback(Some(callback));
 
         let debug_utils = DebugUtils::new(entry, instance);
