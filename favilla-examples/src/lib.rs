@@ -1,3 +1,6 @@
+#![deny(rust_2018_idioms)]
+#![deny(clippy::all)]
+
 use ash::extensions::khr::Surface;
 use ash::vk;
 use ash::vk::PhysicalDevice;

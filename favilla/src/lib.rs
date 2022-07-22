@@ -1,3 +1,6 @@
+#![deny(rust_2018_idioms)]
+#![deny(clippy::all)]
+
 pub mod app;
 pub mod buffer;
 pub mod camera;

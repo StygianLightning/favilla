@@ -77,8 +77,9 @@ mod tests {
         assert_eq!(push_buffer.data(), &(1..9).collect::<Vec<_>>());
         assert!(push_buffer.capacity() >= 8);
 
-        let pass = push_buffer.start_pass();
-        drop(pass);
+        {
+            let _pass = push_buffer.start_pass();
+        }
 
         assert_eq!(push_buffer.len(), 0);
     }
