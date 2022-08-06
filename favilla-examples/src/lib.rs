@@ -57,7 +57,7 @@ where
         vk::MemoryPropertyFlags::DEVICE_LOCAL,
     );
     let index_data: Vec<u32> = (0..length).map(f).collect::<_>();
-    index_staging_buffer.buffer.write(&index_data);
+    index_staging_buffer.buffer.write(&index_data, 0);
 
     vk_engine.one_time_submit(command_pool, |cmd_buffer| {
         index_staging_buffer

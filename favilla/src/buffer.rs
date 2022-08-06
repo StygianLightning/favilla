@@ -172,20 +172,17 @@ impl<T> VulkanBufferWithDedicatedAllocation<T> {
 /// A wrapper for a staging buffer. Holds a `VulkanBuffer<T>` and a pointer to the mapped memory.
 pub struct StagingBuffer<T: Copy> {
     pub buffer: VulkanBuffer<T>,
-    pub buffer_ptr: *mut c_void,
+    pub buffer_ptr: *mut T,
 }
 
 impl<T: Copy> StagingBuffer<T> {
     /// Write the data to the staging buffer.
     /// # Safety
     /// The buffer must not be accessed without proper synchronisation.
-    pub unsafe fn write(&mut self, data: &[T]) {
-        let mut slice = Align::new(
-            self.buffer_ptr,
-            align_of::<T>() as vk::DeviceSize,
-            (data.len() * std::mem::size_of::<T>()) as _,
-        );
-        slice.copy_from_slice(data);
+    pub unsafe fn write(&mut self, data: &[T], offset_in_element_count: usize) {
+        let ptr = self.buffer_ptr.add(offset_in_element_count);
+        let len = data.len();
+        ptr.copy_from_nonoverlapping(data.as_ptr(), len);
     }
 
     /// Frees the buffer resource held by `self`.
@@ -212,7 +209,7 @@ impl<T: Copy> StagingBuffer<T> {
                 buffer.device_size,
                 vk::MemoryMapFlags::empty(),
             )
-            .unwrap();
+            .unwrap() as *mut T;
 
         Self { buffer, buffer_ptr }
     }

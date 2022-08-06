@@ -359,7 +359,7 @@ fn main() -> anyhow::Result<()> {
             SharingMode::EXCLUSIVE,
             MemoryPropertyFlags::HOST_VISIBLE | MemoryPropertyFlags::HOST_COHERENT,
         );
-        image_one_staging_buffer.buffer.write(texture_one_data);
+        image_one_staging_buffer.buffer.write(texture_one_data, 0);
 
         let image_one_memory = texture_memory_allocator
             .allocate(image_one_mem_req)
@@ -426,7 +426,7 @@ fn main() -> anyhow::Result<()> {
             SharingMode::EXCLUSIVE,
             MemoryPropertyFlags::HOST_VISIBLE | MemoryPropertyFlags::HOST_COHERENT,
         );
-        image_two_staging_buffer.buffer.write(texture_two_data);
+        image_two_staging_buffer.buffer.write(texture_two_data, 0);
 
         let image_two_memory = texture_memory_allocator
             .allocate(image_two_mem_req)
@@ -886,7 +886,7 @@ fn main() -> anyhow::Result<()> {
                         cleanup_queue.queue(old_index_buffer);
                     }
 
-                    staging_buffer.buffer.write(push_buffer.data());
+                    staging_buffer.buffer.write(push_buffer.data(), 0);
 
                     // Execution barrier *before* copying from the staging buffer to the vertex buffer:
                     // the vertex buffer might still be used by last frame's rendering process.
@@ -916,7 +916,9 @@ fn main() -> anyhow::Result<()> {
 
                     // Update camera buffer (not strictly necessary since the camera is completely static right now)
                     let camera_buffer = &mut camera_buffer_per_frame[frame as usize];
-                    camera_buffer.buffer.write(&[cam.view_projection_matrix()]);
+                    camera_buffer
+                        .buffer
+                        .write(&[cam.view_projection_matrix()], 0);
 
                     let memory_barrier_transfer_render = vk::MemoryBarrier::builder()
                         .src_access_mask(vk::AccessFlags::TRANSFER_WRITE)
