@@ -26,6 +26,7 @@ pub unsafe fn copy_buffer_to_image(
     image: vk::Image,
     image_extent: vk::Extent3D,
     num_array_layers: u32,
+    buffer_offset: vk::DeviceSize,
 ) {
     // compare with https://github.com/SaschaWillems/Vulkan/blob/master/examples/texturearray/texturearray.cpp#L161
     device.cmd_copy_buffer_to_image(
@@ -34,7 +35,7 @@ pub unsafe fn copy_buffer_to_image(
         image,
         vk::ImageLayout::TRANSFER_DST_OPTIMAL,
         &[vk::BufferImageCopy {
-            buffer_offset: 0,
+            buffer_offset,
             buffer_row_length: 0,
             buffer_image_height: 0,
             image_subresource: vk::ImageSubresourceLayers {
@@ -167,6 +168,7 @@ impl Texture {
         vk_engine: &VulkanEngine,
         command_pool: vk::CommandPool,
         image_staging_buffer: &StagingBuffer<T>,
+        buffer_offset: vk::DeviceSize,
     ) {
         vk_engine.one_time_submit(command_pool, |command_buffer| {
             let barrier = self.get_transition_layout_image_memory_barrier(
@@ -192,6 +194,7 @@ impl Texture {
                 self.image,
                 self.extent,
                 self.num_array_layers,
+                buffer_offset,
             );
 
             let barrier = self.get_transition_layout_image_memory_barrier(

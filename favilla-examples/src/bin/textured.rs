@@ -379,6 +379,7 @@ fn main() -> anyhow::Result<()> {
             &vk_engine,
             frame_manager.command_pool,
             &image_one_staging_buffer.buffer,
+            0,
         );
 
         image_one_staging_buffer.destroy(&vk_engine.device);
@@ -446,6 +447,7 @@ fn main() -> anyhow::Result<()> {
             &vk_engine,
             frame_manager.command_pool,
             &image_two_staging_buffer.buffer,
+            0,
         );
 
         image_two_staging_buffer.destroy(&vk_engine.device);
