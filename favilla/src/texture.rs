@@ -53,7 +53,7 @@ pub unsafe fn copy_buffer_to_image(
 /// Utility function for transitioning the layout of the given images using a pipeline barrier.
 /// # Safety
 /// Pipeline barrier requirements must be met.
-unsafe fn transition_layout(
+pub unsafe fn transition_layout(
     device: &Device,
     command_buffer: vk::CommandBuffer,
     image_memory_barriers: &[ImageMemoryBarrier],
