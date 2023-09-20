@@ -184,8 +184,7 @@ impl VulkanEngine {
                 &vk::CommandBufferAllocateInfo::builder()
                     .command_pool(command_pool)
                     .command_buffer_count(1)
-                    .level(vk::CommandBufferLevel::PRIMARY)
-                    .build(),
+                    .level(vk::CommandBufferLevel::PRIMARY),
             )
             .expect("couldn't allocate command buffer")[0];
 
@@ -204,17 +203,19 @@ impl VulkanEngine {
         self.device
             .end_command_buffer(tmp_command_buffer)
             .expect("Ending command buffer in one_time_submit failed.");
-        let submit_info = vk::SubmitInfo::builder()
-            .command_buffers(&[tmp_command_buffer])
-            .build();
-
         let fence_info = vk::FenceCreateInfo {
             ..Default::default()
         };
         let fence = self.device.create_fence(&fence_info, None).unwrap();
 
         self.device
-            .queue_submit(self.present_queue, &[submit_info], fence)
+            .queue_submit(
+                self.present_queue,
+                &[vk::SubmitInfo::builder()
+                    .command_buffers(&[tmp_command_buffer])
+                    .build()],
+                fence,
+            )
             .expect("Failed to submit temporary command buffer");
         self.device
             .wait_for_fences(&[fence], true, u64::MAX)
