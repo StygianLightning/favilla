@@ -83,7 +83,7 @@ impl<T> VulkanBuffer<T> {
             device_size: size,
             length,
             memory_flags: memory_property_flags,
-            phantom: PhantomData::default(),
+            phantom: PhantomData {},
         }
     }
 

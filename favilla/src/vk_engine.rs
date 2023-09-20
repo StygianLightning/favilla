@@ -49,7 +49,7 @@ impl VulkanEngine {
 
         // We might want to add support for separate present and graphics queues,
         // but it seems there's currently no hardware that supports graphics but not presenting.
-        let present_queue = device.get_device_queue(queue_family_index as u32, 0);
+        let present_queue = device.get_device_queue(queue_family_index, 0);
 
         let device_memory_properties = app
             .instance
