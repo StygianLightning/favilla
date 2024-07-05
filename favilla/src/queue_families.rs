@@ -1,5 +1,5 @@
-use ash::extensions::khr::Surface;
 use ash::vk;
+use ash::khr::surface;
 use ash::vk::{PhysicalDevice, PhysicalDeviceProperties, PhysicalDeviceType};
 use std::os::raw::c_char;
 use tracing::info;
@@ -11,7 +11,7 @@ pub struct DeviceQueueFamilies {
     // supports both graphics and presenting, but it seems no hardware actually works that way currently,
     // so we're sticking to the simpler API for now.
     pub queue_family_index: u32,
-    pub surface_loader: Surface,
+    pub surface_instance: surface::Instance,
 }
 
 /// Function with a default implementation to get a suitable queue family;
@@ -29,7 +29,7 @@ pub unsafe fn select(
     let physical_devices = instance
         .enumerate_physical_devices()
         .expect("Physical device error");
-    let surface_loader = Surface::new(entry, instance);
+    let surface_instance = surface::Instance::new(entry, instance);
 
     struct Candidate {
         physical_device: PhysicalDevice,
@@ -49,7 +49,7 @@ pub unsafe fn select(
                 .find_map(|(queue_family_index, ref info)| {
                     let supports_graphic_and_surface =
                         info.queue_flags.contains(vk::QueueFlags::GRAPHICS)
-                            && surface_loader
+                            && surface_instance
                                 .get_physical_device_surface_support(
                                     *physical_device,
                                     queue_family_index as u32,
@@ -101,6 +101,7 @@ pub unsafe fn select(
     DeviceQueueFamilies {
         physical_device: selected.physical_device,
         queue_family_index: selected.queue_family_index as _,
-        surface_loader,
+        surface_instance,
     }
+    
 }

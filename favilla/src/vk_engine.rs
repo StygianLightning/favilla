@@ -1,4 +1,4 @@
-use ash::extensions::khr::Surface;
+use ash::khr::surface;
 
 use ash::vk::{DescriptorSet, RenderPass, SurfaceCapabilitiesKHR, SurfaceKHR};
 use ash::{vk, Device, Instance};
@@ -21,7 +21,7 @@ pub struct VulkanEngine {
     pub queue_family_index: u32,
     pub present_queue: vk::Queue,
 
-    pub surface_loader: Surface,
+    pub surface_instance: surface::Instance,
     pub surface: vk::SurfaceKHR,
     pub surface_format: vk::SurfaceFormatKHR,
     pub surface_resolution: vk::Extent2D,
@@ -44,7 +44,7 @@ impl VulkanEngine {
         let DeviceQueueFamilies {
             physical_device,
             queue_family_index,
-            surface_loader,
+            surface_instance,
         } = queue_families;
 
         // We might want to add support for separate present and graphics queues,
@@ -55,7 +55,7 @@ impl VulkanEngine {
             .instance
             .get_physical_device_memory_properties(physical_device);
 
-        let surface_capabilities = surface_loader
+        let surface_capabilities = surface_instance
             .get_physical_device_surface_capabilities(physical_device, surface)
             .unwrap();
         let mut desired_image_count = surface_capabilities.min_image_count + 1;
@@ -74,7 +74,7 @@ impl VulkanEngine {
             current_frame: 0,
             surface_capabilities,
             device,
-            surface_loader,
+            surface_instance,
             physical_device,
             device_memory_properties,
             queue_family_index,
@@ -92,7 +92,7 @@ impl VulkanEngine {
     pub unsafe fn destroy(&mut self) {
         self.device.device_wait_idle().unwrap();
         self.device.destroy_device(None);
-        self.surface_loader.destroy_surface(self.surface, None);
+        self.surface_instance.destroy_surface(self.surface, None);
     }
 
     /// Perform a new memory allocation. Panics if the allocation fails.
@@ -142,7 +142,7 @@ impl VulkanEngine {
         self.device.device_wait_idle().unwrap();
 
         self.surface_capabilities = self
-            .surface_loader
+            .surface_instance
             .get_physical_device_surface_capabilities(self.physical_device, self.surface)
             .unwrap();
 
@@ -164,10 +164,9 @@ impl VulkanEngine {
         descriptor_pool: vk::DescriptorPool,
     ) -> VkResult<Vec<DescriptorSet>> {
         self.device.allocate_descriptor_sets(
-            &vk::DescriptorSetAllocateInfo::builder()
+            &vk::DescriptorSetAllocateInfo::default()
                 .set_layouts(set_layouts)
                 .descriptor_pool(descriptor_pool)
-                .build(),
         )
     }
 
@@ -181,7 +180,7 @@ impl VulkanEngine {
         let tmp_command_buffer = self
             .device
             .allocate_command_buffers(
-                &vk::CommandBufferAllocateInfo::builder()
+                &vk::CommandBufferAllocateInfo::default()
                     .command_pool(command_pool)
                     .command_buffer_count(1)
                     .level(vk::CommandBufferLevel::PRIMARY),
@@ -211,9 +210,7 @@ impl VulkanEngine {
         self.device
             .queue_submit(
                 self.present_queue,
-                &[vk::SubmitInfo::builder()
-                    .command_buffers(&[tmp_command_buffer])
-                    .build()],
+                &[vk::SubmitInfo::default().command_buffers(&[tmp_command_buffer])],
                 fence,
             )
             .expect("Failed to submit temporary command buffer");

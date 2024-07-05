@@ -13,7 +13,7 @@ impl FrameDataManager {
     /// # Safety
     /// Must be able to create command buffers, fences and semaphores.
     pub unsafe fn new(vk_engine: &VulkanEngine) -> Self {
-        let pool_create_info = vk::CommandPoolCreateInfo::builder()
+        let pool_create_info = vk::CommandPoolCreateInfo::default()
             .flags(
                 vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER
                     | vk::CommandPoolCreateFlags::TRANSIENT,
@@ -24,7 +24,7 @@ impl FrameDataManager {
             .create_command_pool(&pool_create_info, None)
             .unwrap();
 
-        let command_buffer_allocate_info = vk::CommandBufferAllocateInfo::builder()
+        let command_buffer_allocate_info = vk::CommandBufferAllocateInfo::default()
             .command_buffer_count(vk_engine.num_frames)
             .command_pool(pool)
             .level(vk::CommandBufferLevel::PRIMARY);

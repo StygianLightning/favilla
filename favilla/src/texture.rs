@@ -56,7 +56,7 @@ pub unsafe fn copy_buffer_to_image(
 pub unsafe fn transition_layout(
     device: &Device,
     command_buffer: vk::CommandBuffer,
-    image_memory_barriers: &[ImageMemoryBarrier],
+    image_memory_barriers: &[ImageMemoryBarrier<'_>],
     src_stage_mask: vk::PipelineStageFlags,
     dst_stage_mask: vk::PipelineStageFlags,
 ) {
@@ -83,7 +83,7 @@ impl Texture {
         num_array_layers: u32,
     ) -> Result<Self, vk::Result> {
         let image = vk_engine.device.create_image(
-            &vk::ImageCreateInfo::builder()
+            &vk::ImageCreateInfo::default()
                 .image_type(image_type)
                 .format(format)
                 .extent(extent)
@@ -92,8 +92,7 @@ impl Texture {
                 .samples(vk::SampleCountFlags::TYPE_1)
                 .mip_levels(1)
                 .array_layers(num_array_layers)
-                .sharing_mode(vk::SharingMode::EXCLUSIVE)
-                .build(),
+                .sharing_mode(vk::SharingMode::EXCLUSIVE),
             None,
         )?;
 
@@ -133,23 +132,21 @@ impl Texture {
         dst_access_mask: vk::AccessFlags,
         old_layout: vk::ImageLayout,
         new_layout: vk::ImageLayout,
-    ) -> vk::ImageMemoryBarrier {
-        vk::ImageMemoryBarrier::builder()
+    ) -> vk::ImageMemoryBarrier<'_> {
+        vk::ImageMemoryBarrier::default()
             .src_access_mask(src_access_mask)
             .dst_access_mask(dst_access_mask)
             .old_layout(old_layout)
             .new_layout(new_layout)
             .image(self.image)
             .subresource_range(
-                vk::ImageSubresourceRange::builder()
+                vk::ImageSubresourceRange::default()
                     .aspect_mask(vk::ImageAspectFlags::COLOR)
                     .base_mip_level(0)
                     .level_count(1)
                     .base_array_layer(0)
                     .layer_count(self.num_array_layers)
-                    .build(),
             )
-            .build()
     }
 
     /// Utility method for copying data from a staging buffer to `self`.

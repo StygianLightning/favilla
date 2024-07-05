@@ -1,7 +1,7 @@
 #![deny(rust_2018_idioms)]
 #![deny(clippy::all)]
 
-use ash::extensions::khr::Surface;
+use ash::khr::surface;
 use ash::vk;
 use ash::vk::PhysicalDevice;
 use ash::vk::{PipelineLayout, ShaderModule, VertexInputRate};
@@ -105,12 +105,11 @@ pub unsafe fn create_render_pass(vk_engine: &VulkanEngine) -> vk::RenderPass {
         ..Default::default()
     }];
 
-    let subpasses = [vk::SubpassDescription::builder()
+    let subpasses = [vk::SubpassDescription::default()
         .color_attachments(&color_attachment_refs)
-        .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
-        .build()];
+        .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)];
 
-    let renderpass_create_info = vk::RenderPassCreateInfo::builder()
+    let renderpass_create_info = vk::RenderPassCreateInfo::default()
         .attachments(&renderpass_attachments)
         .subpasses(&subpasses)
         .dependencies(&dependencies);
@@ -168,16 +167,14 @@ pub unsafe fn create_graphics_pipeline(
         },
     ];
 
-    let vertex_binding_descriptions = [vk::VertexInputBindingDescription::builder()
+    let vertex_binding_descriptions = [vk::VertexInputBindingDescription::default()
         .binding(0)
         .stride(std::mem::size_of::<Vertex>() as u32)
-        .input_rate(VertexInputRate::VERTEX)
-        .build()];
+        .input_rate(VertexInputRate::VERTEX)];
 
-    let vertex_input_state = vk::PipelineVertexInputStateCreateInfo::builder()
+    let vertex_input_state = vk::PipelineVertexInputStateCreateInfo::default()
         .vertex_attribute_descriptions(&vertex_input_attribute_desc)
-        .vertex_binding_descriptions(&vertex_binding_descriptions)
-        .build();
+        .vertex_binding_descriptions(&vertex_binding_descriptions);
 
     let pipeline_input_assembly_state_info = vk::PipelineInputAssemblyStateCreateInfo {
         topology: vk::PrimitiveTopology::TRIANGLE_LIST,
@@ -196,7 +193,7 @@ pub unsafe fn create_graphics_pipeline(
         offset: vk::Offset2D { x: 0, y: 0 },
         extent: vk_engine.surface_resolution,
     }];
-    let viewport_state_info = vk::PipelineViewportStateCreateInfo::builder()
+    let viewport_state_info = vk::PipelineViewportStateCreateInfo::default()
         .scissors(&scissors)
         .viewports(&viewports);
 
@@ -239,15 +236,15 @@ pub unsafe fn create_graphics_pipeline(
             | vk::ColorComponentFlags::B
             | vk::ColorComponentFlags::A,
     }];
-    let color_blend_state = vk::PipelineColorBlendStateCreateInfo::builder()
+    let color_blend_state = vk::PipelineColorBlendStateCreateInfo::default()
         .logic_op(vk::LogicOp::CLEAR)
         .attachments(&color_blend_attachment_states);
 
     let dynamic_state = [vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR];
     let dynamic_state_info =
-        vk::PipelineDynamicStateCreateInfo::builder().dynamic_states(&dynamic_state);
+        vk::PipelineDynamicStateCreateInfo::default().dynamic_states(&dynamic_state);
 
-    let graphic_pipeline_info = vk::GraphicsPipelineCreateInfo::builder()
+    let graphic_pipeline_info = vk::GraphicsPipelineCreateInfo::default()
         .stages(&shader_stage_create_infos)
         .vertex_input_state(&vertex_input_state)
         .input_assembly_state(&pipeline_input_assembly_state_info)
@@ -262,11 +259,7 @@ pub unsafe fn create_graphics_pipeline(
 
     let graphics_pipelines = vk_engine
         .device
-        .create_graphics_pipelines(
-            vk::PipelineCache::null(),
-            &[graphic_pipeline_info.build()],
-            None,
-        )
+        .create_graphics_pipelines(vk::PipelineCache::null(), &[graphic_pipeline_info], None)
         .expect("Unable to create graphics pipeline");
 
     graphics_pipelines[0]
@@ -277,7 +270,7 @@ pub unsafe fn create_graphics_pipeline(
 pub unsafe extern "system" fn vulkan_debug_callback(
     message_severity: vk::DebugUtilsMessageSeverityFlagsEXT,
     message_type: vk::DebugUtilsMessageTypeFlagsEXT,
-    p_callback_data: *const vk::DebugUtilsMessengerCallbackDataEXT,
+    p_callback_data: *const vk::DebugUtilsMessengerCallbackDataEXT<'_>,
     _user_data: *mut std::os::raw::c_void,
 ) -> vk::Bool32 {
     let callback_data = *p_callback_data;
@@ -311,7 +304,7 @@ pub unsafe extern "system" fn vulkan_debug_callback(
 /// # Safety
 /// The given surface has to be compatible with the given device.
 pub unsafe fn find_surface_format(
-    surface_loader: &Surface,
+    surface_loader: &surface::Instance,
     surface: vk::SurfaceKHR,
     physical_device: PhysicalDevice,
 ) -> vk::SurfaceFormatKHR {

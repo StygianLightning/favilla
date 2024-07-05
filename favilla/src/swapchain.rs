@@ -1,12 +1,12 @@
 use crate::vk_engine::VulkanEngine;
-use ash::extensions::khr::Swapchain;
+use ash::khr::swapchain;
 use ash::vk::RenderPass;
 use ash::{vk, Device, Instance};
 use tracing::{event, info, Level};
 
 /// Helper for swapchain management.
 pub struct SwapchainManager {
-    pub swapchain_loader: Swapchain,
+    pub swapchain_device: swapchain::Device,
     pub swapchain: vk::SwapchainKHR,
     pub swapchain_data: Vec<PerSwapchainImage>,
 }
@@ -19,10 +19,10 @@ impl SwapchainManager {
     /// # Safety
     /// Requires a valid device and render pass.
     pub unsafe fn new(instance: &Instance, engine: &VulkanEngine, render_pass: RenderPass) -> Self {
-        let swapchain_loader = Swapchain::new(instance, &engine.device);
+        let swapchain_device = swapchain::Device::new(instance, &engine.device);
 
         let present_modes = engine
-            .surface_loader
+            .surface_instance
             .get_physical_device_surface_present_modes(engine.physical_device, engine.surface)
             .unwrap();
         let present_mode = *present_modes
@@ -39,7 +39,7 @@ impl SwapchainManager {
         );
         // We might want to check if present and graphics queue are the same... might need to use concurrent sharing mode here
         // However, no current hardware seems to support only one of the two but not both.
-        let swapchain_create_info = vk::SwapchainCreateInfoKHR::builder()
+        let swapchain_create_info = vk::SwapchainCreateInfoKHR::default()
             .surface(engine.surface)
             .min_image_count(engine.desired_swapchain_image_count)
             .image_color_space(engine.surface_format.color_space)
@@ -53,15 +53,15 @@ impl SwapchainManager {
             .clipped(true)
             .image_array_layers(1);
 
-        let swapchain = swapchain_loader
+        let swapchain = swapchain_device
             .create_swapchain(&swapchain_create_info, None)
             .unwrap();
 
-        let present_images = swapchain_loader.get_swapchain_images(swapchain).unwrap();
+        let present_images = swapchain_device.get_swapchain_images(swapchain).unwrap();
         let present_image_views: Vec<vk::ImageView> = present_images
             .iter()
             .map(|&image| {
-                let create_view_info = vk::ImageViewCreateInfo::builder()
+                let create_view_info = vk::ImageViewCreateInfo::default()
                     .view_type(vk::ImageViewType::TYPE_2D)
                     .format(engine.surface_format.format)
                     .components(vk::ComponentMapping {
@@ -89,7 +89,7 @@ impl SwapchainManager {
             .iter()
             .map(|present_image_view| {
                 let attachmments = [*present_image_view];
-                let framebuffer_create_info = vk::FramebufferCreateInfo::builder()
+                let framebuffer_create_info = vk::FramebufferCreateInfo::default()
                     .attachments(&attachmments)
                     .render_pass(render_pass)
                     .width(engine.surface_resolution.width)
@@ -113,7 +113,7 @@ impl SwapchainManager {
             .collect();
 
         Self {
-            swapchain_loader,
+            swapchain_device,
             swapchain,
             swapchain_data,
         }
@@ -128,7 +128,7 @@ impl SwapchainManager {
         for swapchain_data in &mut self.swapchain_data {
             swapchain_data.destroy(device);
         }
-        self.swapchain_loader
+        self.swapchain_device
             .destroy_swapchain(self.swapchain, None);
     }
 }

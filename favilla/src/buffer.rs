@@ -1,12 +1,9 @@
 use crate::memory::find_memory_type_index;
 use crate::vk_engine::VulkanEngine;
 
-use ash::util::Align;
 use ash::vk::{Buffer, BufferCopy, DeviceMemory};
 use ash::{vk, Device};
-use std::ffi::c_void;
 use std::marker::PhantomData;
-use std::mem::align_of;
 use thiserror::Error;
 use tracing::{event, Level};
 
@@ -48,11 +45,10 @@ impl<T> VulkanBuffer<T> {
                 command_buffer,
                 self.buffer,
                 dst.buffer,
-                &[BufferCopy::builder()
+                &[BufferCopy::default()
                     .src_offset(src_offset)
                     .dst_offset(dst_offset)
-                    .size(length * std::mem::size_of::<T>() as u64)
-                    .build()],
+                    .size(length * std::mem::size_of::<T>() as u64)],
             );
             Ok(())
         }

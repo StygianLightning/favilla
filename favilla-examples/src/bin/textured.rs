@@ -1,8 +1,4 @@
-use ash::extensions::ext::DebugUtils;
-use ash::extensions::khr::Swapchain;
-use ash::vk::{
-    DeviceSize, Handle, ImageViewCreateInfo, IndexType, MemoryPropertyFlags, SharingMode,
-};
+use ash::vk::{DeviceSize, ImageViewCreateInfo, IndexType, MemoryPropertyFlags, SharingMode};
 use ash::{vk, Entry};
 use cgmath::{vec2, vec4, Matrix4};
 use cstr::cstr;
@@ -10,13 +6,16 @@ use favilla::app::{App, AppSettings};
 use favilla::buffer::{StagingBufferWithDedicatedAllocation, VulkanBufferWithDedicatedAllocation};
 use favilla::camera::Camera;
 use favilla::cleanup_queue::CleanupQueue;
-use favilla::debug_utils::DebugUtilsHelper;
+use favilla::debug_utils::DebugUtilsInstanceHelper;
 use favilla::frame_data::FrameDataManager;
 use favilla::memory::find_memory_type_index;
 use favilla::push_buffer::PushBuffer;
 use favilla::swapchain::SwapchainManager;
 use favilla::vk_engine::VulkanEngine;
 use favilla_examples::*;
+use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
+use sdl2::event::WindowEvent;
+use sdl2::keyboard::Keycode;
 use std::default::Default;
 use std::ffi::CStr;
 use std::os::raw::c_char;
@@ -25,10 +24,8 @@ use tracing::{event, info, Level};
 use tracing_subscriber::fmt::Subscriber;
 use vk::{DependencyFlags, PipelineStageFlags};
 use vk_shader_macros::include_glsl;
-use winit::{
-    event::{Event, WindowEvent},
-    event_loop::{ControlFlow, EventLoop},
-};
+
+use sdl2::event::Event;
 
 const NUM_FRAMES: u32 = 2;
 
@@ -47,15 +44,16 @@ fn main() -> anyhow::Result<()> {
     let window_height = 600;
     let window_width = 800;
 
-    let event_loop = EventLoop::new();
-    let window = winit::window::WindowBuilder::new()
-        .with_title("StygVK - Example")
-        .with_inner_size(winit::dpi::LogicalSize::new(
-            f64::from(window_width),
-            f64::from(window_height),
-        ))
-        .build(&event_loop)
-        .expect("Could not build window");
+    let sdl_context = sdl2::init().unwrap();
+    let video_subsystem = sdl_context.video().unwrap();
+    let window = video_subsystem
+        .window("Favilla Example", window_width, window_height)
+        .position_centered()
+        .resizable()
+        .metal_view()
+        .build()
+        .map_err(|e| e.to_string())
+        .unwrap();
 
     unsafe {
         let entry = Entry::linked();
@@ -68,26 +66,29 @@ fn main() -> anyhow::Result<()> {
             event!(Level::DEBUG, "{:?}", instance_extension);
         }
 
-        let mut required_extensions = ash_window::enumerate_required_extensions(&window)
-            .expect("enumerating required extensions for ash window failed")
-            .to_vec();
+        let mut required_extensions =
+            ash_window::enumerate_required_extensions(window.display_handle().unwrap().as_raw())
+                .expect("enumerating required extensions for ash window failed")
+                .to_vec();
 
         let debug_utils_supported = instance_extensions
             .iter()
-            .any(|x| CStr::from_ptr(x.extension_name.as_ptr()) == DebugUtils::name());
+            .any(|x| CStr::from_ptr(x.extension_name.as_ptr()) == ash::ext::debug_utils::NAME);
 
         if debug_utils_supported {
             event!(Level::DEBUG, "Enabling debug utils");
-            required_extensions.push(DebugUtils::name().as_ptr());
+            required_extensions.push(ash::ext::debug_utils::NAME.as_ptr());
         } else {
             event!(Level::DEBUG, "No support for debug utils");
         }
+
+        event!(Level::DEBUG, "required extensions: {required_extensions:?}");
 
         let mut app = App::new(
             entry,
             AppSettings {
                 name: "Styg VK Sample",
-                layer_names: &[favilla::layer_names::VK_LAYER_KHRONOS_VALIDATION],
+                layer_names: &[],
                 vk_api_version: vk::make_api_version(0, 1, 1, 0),
                 extensions: required_extensions,
             },
@@ -95,7 +96,7 @@ fn main() -> anyhow::Result<()> {
         .unwrap_or_else(|err| panic!("Failed to construct app: {}", err));
 
         let mut debug_utils_helper = if debug_utils_supported {
-            Some(DebugUtilsHelper::new(
+            Some(DebugUtilsInstanceHelper::new(
                 &app.entry,
                 &app.instance,
                 vulkan_debug_callback,
@@ -104,7 +105,14 @@ fn main() -> anyhow::Result<()> {
             None
         };
 
-        let surface = ash_window::create_surface(&app.entry, &app.instance, &window, None).unwrap();
+        let surface = ash_window::create_surface(
+            &app.entry,
+            &app.instance,
+            window.display_handle().unwrap().as_raw(),
+            window.window_handle().unwrap().as_raw(),
+            None,
+        )
+        .unwrap();
         let queue_families =
             favilla::queue_families::select(&app.entry, &app.instance, surface, None);
 
@@ -125,14 +133,14 @@ fn main() -> anyhow::Result<()> {
         info!(name, "selected device");
 
         let surface_format = find_surface_format(
-            &queue_families.surface_loader,
+            &queue_families.surface_instance,
             surface,
             queue_families.physical_device,
         );
 
         event!(Level::DEBUG, "using surface format {:?}", surface_format);
 
-        let device_extension_names_raw = [Swapchain::name().as_ptr()];
+        let device_extension_names_raw = [ash::khr::swapchain::NAME.as_ptr()];
         let physical_device_features = vk::PhysicalDeviceFeatures {
             shader_clip_distance: 1,
             ..Default::default()
@@ -140,12 +148,11 @@ fn main() -> anyhow::Result<()> {
 
         let priorities = [1.0];
 
-        let queue_info = [vk::DeviceQueueCreateInfo::builder()
+        let queue_info = [vk::DeviceQueueCreateInfo::default()
             .queue_family_index(queue_families.queue_family_index)
-            .queue_priorities(&priorities)
-            .build()];
+            .queue_priorities(&priorities)];
 
-        let device_create_info = vk::DeviceCreateInfo::builder()
+        let device_create_info = vk::DeviceCreateInfo::default()
             .queue_create_infos(&queue_info)
             .enabled_extension_names(&device_extension_names_raw)
             .enabled_features(&physical_device_features);
@@ -168,6 +175,15 @@ fn main() -> anyhow::Result<()> {
                 height: window_height,
             },
         );
+
+        let debug_device = if debug_utils_helper.is_some() {
+            Some(ash::ext::debug_utils::Device::new(
+                &app.instance,
+                &vk_engine.device,
+            ))
+        } else {
+            None
+        };
 
         let mut frame_manager = FrameDataManager::new(&vk_engine);
 
@@ -201,8 +217,6 @@ fn main() -> anyhow::Result<()> {
 
         let mut push_buffer = PushBuffer::new(3);
 
-        let mut exiting = false;
-
         let cam_buffer_size = std::mem::size_of::<Matrix4<f32>>() as u64;
 
         let mut cam = Camera::new(vec2(window_width as _, window_height as _), 0.0, 1.0);
@@ -212,33 +226,29 @@ fn main() -> anyhow::Result<()> {
         let descriptor_pool = vk_engine
             .device
             .create_descriptor_pool(
-                &vk::DescriptorPoolCreateInfo::builder()
+                &vk::DescriptorPoolCreateInfo::default()
                     .max_sets(10)
                     .pool_sizes(&[
-                        vk::DescriptorPoolSize::builder()
+                        vk::DescriptorPoolSize::default()
                             .ty(vk::DescriptorType::UNIFORM_BUFFER)
-                            .descriptor_count(1)
-                            .build(),
-                        vk::DescriptorPoolSize::builder()
+                            .descriptor_count(1),
+                        vk::DescriptorPoolSize::default()
                             .ty(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
-                            .descriptor_count(2)
-                            .build(),
-                    ])
-                    .build(),
+                            .descriptor_count(2),
+                    ]),
                 None,
             )
             .expect("Failed to allocate descriptor pool");
 
-        let cam_binding = vk::DescriptorSetLayoutBinding::builder()
+        let cam_binding = vk::DescriptorSetLayoutBinding::default()
             .binding(0)
             .descriptor_count(1)
             .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
-            .stage_flags(vk::ShaderStageFlags::VERTEX)
-            .build();
+            .stage_flags(vk::ShaderStageFlags::VERTEX);
+        let cam_bindings = [cam_binding];
 
-        let camera_descriptor_set_layout_create_info = vk::DescriptorSetLayoutCreateInfo::builder()
-            .bindings(&[cam_binding])
-            .build();
+        let camera_descriptor_set_layout_create_info =
+            vk::DescriptorSetLayoutCreateInfo::default().bindings(&cam_bindings);
 
         let camera_descriptor_set_layout = vk_engine
             .device
@@ -265,16 +275,14 @@ fn main() -> anyhow::Result<()> {
             let descriptor_set = descriptor_sets[0];
 
             vk_engine.device.update_descriptor_sets(
-                &[vk::WriteDescriptorSet::builder()
+                &[vk::WriteDescriptorSet::default()
                     .dst_binding(0)
                     .dst_set(descriptor_set)
                     .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
-                    .buffer_info(&[vk::DescriptorBufferInfo::builder()
+                    .buffer_info(&[vk::DescriptorBufferInfo::default()
                         .buffer(camera_buffer.buffer.buffer.buffer)
                         .offset(0)
-                        .range(cam_buffer_size)
-                        .build()])
-                    .build()],
+                        .range(cam_buffer_size)])],
                 &[],
             );
 
@@ -387,19 +395,18 @@ fn main() -> anyhow::Result<()> {
         let image_view_one = vk_engine
             .device
             .create_image_view(
-                &ImageViewCreateInfo::builder()
+                &ImageViewCreateInfo::default()
                     .image(image_one.image)
                     .format(image_format)
                     .components(vk::ComponentMapping::default())
                     .view_type(vk::ImageViewType::TYPE_2D)
                     .subresource_range(
-                        vk::ImageSubresourceRange::builder()
+                        vk::ImageSubresourceRange::default()
                             .aspect_mask(vk::ImageAspectFlags::COLOR)
                             .base_mip_level(0)
                             .level_count(1)
                             .base_array_layer(0)
-                            .layer_count(num_texture_array_layers)
-                            .build(),
+                            .layer_count(num_texture_array_layers),
                     ),
                 None,
             )
@@ -455,36 +462,33 @@ fn main() -> anyhow::Result<()> {
         let image_view_two = vk_engine
             .device
             .create_image_view(
-                &ImageViewCreateInfo::builder()
+                &ImageViewCreateInfo::default()
                     .image(image_two.image)
                     .format(image_format)
                     .components(vk::ComponentMapping::default())
                     .view_type(vk::ImageViewType::TYPE_2D)
                     .subresource_range(
-                        vk::ImageSubresourceRange::builder()
+                        vk::ImageSubresourceRange::default()
                             .aspect_mask(vk::ImageAspectFlags::COLOR)
                             .base_mip_level(0)
                             .level_count(1)
                             .base_array_layer(0)
-                            .layer_count(num_texture_array_layers)
-                            .build(),
+                            .layer_count(num_texture_array_layers),
                     ),
                 None,
             )
             .expect("Couldn't create image view.");
 
-        let texture_binding = vk::DescriptorSetLayoutBinding::builder()
+        let texture_binding = vk::DescriptorSetLayoutBinding::default()
             .binding(0)
             // Two descriptors :D
             .descriptor_count(2)
             .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
-            .stage_flags(vk::ShaderStageFlags::FRAGMENT)
-            .build();
+            .stage_flags(vk::ShaderStageFlags::FRAGMENT);
+        let texture_bindings = [texture_binding];
 
         let texture_descriptor_set_layout_create_info =
-            vk::DescriptorSetLayoutCreateInfo::builder()
-                .bindings(&[texture_binding])
-                .build();
+            vk::DescriptorSetLayoutCreateInfo::default().bindings(&texture_bindings);
 
         let texture_descriptor_set_layout = vk_engine
             .device
@@ -494,13 +498,12 @@ fn main() -> anyhow::Result<()> {
         let sampler = vk_engine
             .device
             .create_sampler(
-                &vk::SamplerCreateInfo::builder()
+                &vk::SamplerCreateInfo::default()
                     .mag_filter(vk::Filter::NEAREST)
                     .min_filter(vk::Filter::NEAREST)
                     .address_mode_u(vk::SamplerAddressMode::REPEAT)
                     .address_mode_v(vk::SamplerAddressMode::REPEAT)
-                    .address_mode_w(vk::SamplerAddressMode::REPEAT)
-                    .build(),
+                    .address_mode_w(vk::SamplerAddressMode::REPEAT),
                 None,
             )
             .expect("Failed to create image sampler");
@@ -509,48 +512,44 @@ fn main() -> anyhow::Result<()> {
         let texture_descriptor_sets = vk_engine
             .device
             .allocate_descriptor_sets(
-                &vk::DescriptorSetAllocateInfo::builder()
+                &vk::DescriptorSetAllocateInfo::default()
                     .set_layouts(&[texture_descriptor_set_layout])
-                    .descriptor_pool(descriptor_pool)
-                    .build(),
+                    .descriptor_pool(descriptor_pool),
             )
             .expect("Failed to allocate descriptor");
 
         let texture_descriptor_set = texture_descriptor_sets[0];
 
         vk_engine.device.update_descriptor_sets(
-            &[vk::WriteDescriptorSet::builder()
+            &[vk::WriteDescriptorSet::default()
                 .dst_binding(0)
                 .dst_set(texture_descriptor_set)
                 .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
                 .image_info(&[
                     // Texture one
-                    vk::DescriptorImageInfo::builder()
+                    vk::DescriptorImageInfo::default()
                         .image_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
                         .sampler(sampler)
-                        .image_view(image_view_one)
-                        .build(),
+                        .image_view(image_view_one),
                     // Texture two
-                    vk::DescriptorImageInfo::builder()
+                    vk::DescriptorImageInfo::default()
                         .image_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
                         .sampler(sampler)
-                        .image_view(image_view_two)
-                        .build(),
-                ])
-                .build()],
+                        .image_view(image_view_two),
+                ])],
             &[],
         );
 
         event!(Level::DEBUG, "all texture stuff done");
         // TEXTURE FUN END
 
-        let vertex_shader_info = vk::ShaderModuleCreateInfo::builder().code(VERT);
+        let vertex_shader_info = vk::ShaderModuleCreateInfo::default().code(VERT);
         let vertex_shader = vk_engine
             .device
             .create_shader_module(&vertex_shader_info, None)
             .unwrap();
 
-        let fragment_shader_info = vk::ShaderModuleCreateInfo::builder().code(FRAG);
+        let fragment_shader_info = vk::ShaderModuleCreateInfo::default().code(FRAG);
         let fragment_shader = vk_engine
             .device
             .create_shader_module(&fragment_shader_info, None)
@@ -559,9 +558,8 @@ fn main() -> anyhow::Result<()> {
         let pipeline_layout = vk_engine
             .device
             .create_pipeline_layout(
-                &vk::PipelineLayoutCreateInfo::builder()
-                    .set_layouts(&[camera_descriptor_set_layout, texture_descriptor_set_layout])
-                    .build(),
+                &vk::PipelineLayoutCreateInfo::default()
+                    .set_layouts(&[camera_descriptor_set_layout, texture_descriptor_set_layout]),
                 None,
             )
             .unwrap();
@@ -582,7 +580,7 @@ fn main() -> anyhow::Result<()> {
         );
 
         let inverted_fragment_shader_info =
-            vk::ShaderModuleCreateInfo::builder().code(FRAG_INVERTED);
+            vk::ShaderModuleCreateInfo::default().code(FRAG_INVERTED);
         let inverted_fragment_shader = vk_engine
             .device
             .create_shader_module(&inverted_fragment_shader_info, None)
@@ -606,463 +604,451 @@ fn main() -> anyhow::Result<()> {
 
         let mut recreate_swapchain = false;
 
-        event_loop.run(move |event, _, control_flow| {
-            // ControlFlow::Poll continuously runs the event loop, even if the OS hasn't
-            // dispatched any events. This is ideal for games and similar applications.
-            *control_flow = ControlFlow::Poll;
+        let mut event_pump = sdl_context.event_pump().unwrap();
 
-            // ControlFlow::Wait pauses the event loop if no events are available to process.
-            // This is ideal for non-game applications that only update in response to user
-            // input, and uses significantly less power/CPU time than ControlFlow::Poll.
-            //*control_flow = ControlFlow::Wait;
+        'running: loop {
+            for event in event_pump.poll_iter() {
+                match event {
+                    Event::Window {
+                        window_id,
+                        win_event: WindowEvent::SizeChanged(width, height),
+                        ..
+                    } if window_id == window.id() => {
+                        recreate_swapchain = true;
+                        cam.set_extent(vec2(width as _, height as _));
+                    }
+                    Event::Quit { .. }
+                    | Event::KeyDown {
+                        keycode: Some(Keycode::Escape),
+                        ..
+                    } => {
+                        event!(Level::DEBUG, "Exiting");
 
-            match event {
-                Event::WindowEvent {
-                    event: WindowEvent::Resized(new_size),
-                    ..
-                } => {
-                    recreate_swapchain = true;
-                    cam.set_extent(vec2(new_size.width as _, new_size.height as _));
+                        vk_engine.device.device_wait_idle().unwrap();
+
+                        vk_engine.device.destroy_image_view(image_view_one, None);
+                        image_one.destroy(&vk_engine.device);
+
+                        vk_engine.device.destroy_image_view(image_view_two, None);
+                        image_two.destroy(&vk_engine.device);
+
+                        texture_memory_allocator.destroy(&vk_engine.device);
+
+                        index_buffer.destroy(&vk_engine.device);
+
+                        for staging_buffer in &mut staging_buffer_per_frame {
+                            staging_buffer.destroy(&vk_engine.device);
+                        }
+                        vertex_buffer.destroy(&vk_engine.device);
+
+                        cleanup_queue.destroy(&vk_engine.device);
+
+                        vk_engine
+                            .device
+                            .destroy_pipeline_layout(pipeline_layout, None);
+
+                        vk_engine
+                            .device
+                            .destroy_descriptor_pool(descriptor_pool, None);
+
+                        for buffer in &mut camera_buffer_per_frame {
+                            buffer.destroy(&vk_engine.device);
+                        }
+
+                        vk_engine.device.destroy_sampler(sampler, None);
+
+                        vk_engine.device.destroy_pipeline(graphics_pipeline, None);
+                        vk_engine
+                            .device
+                            .destroy_pipeline(inverted_graphics_pipeline, None);
+
+                        swapchain_manager.destroy(&vk_engine.device);
+
+                        vk_engine.device.destroy_render_pass(render_pass, None);
+
+                        frame_manager.destroy(&vk_engine.device);
+                        vk_engine.destroy();
+                        if let Some(debug_utils_helper) = &mut debug_utils_helper {
+                            debug_utils_helper.destroy();
+                        }
+                        app.destroy();
+                        break 'running Ok(());
+                    }
+                    e => {
+                        dbg!(e);
+                    }
                 }
-                Event::WindowEvent {
-                    event: WindowEvent::CloseRequested,
-                    ..
-                } => {
-                    event!(Level::DEBUG, "Exiting");
-                    exiting = true;
-                    *control_flow = ControlFlow::Exit;
+            }
 
-                    vk_engine.device.device_wait_idle().unwrap();
+            // Application update code.
 
-                    vk_engine.device.destroy_image_view(image_view_one, None);
-                    image_one.destroy(&vk_engine.device);
+            let frame = vk_engine.current_frame;
 
-                    vk_engine.device.destroy_image_view(image_view_two, None);
-                    image_two.destroy(&vk_engine.device);
+            // DRAW STUFF
 
-                    texture_memory_allocator.destroy(&vk_engine.device);
+            let current_frame_data = &mut frame_manager.frame_data[frame as usize];
 
-                    index_buffer.destroy(&vk_engine.device);
+            let image_acquired_semaphore = current_frame_data.image_acquired_semaphore;
+            let render_complete_semaphore = current_frame_data.render_complete_semaphore;
 
-                    for staging_buffer in &mut staging_buffer_per_frame {
-                        staging_buffer.destroy(&vk_engine.device);
-                    }
-                    vertex_buffer.destroy(&vk_engine.device);
+            let present_index = loop {
+                let mut recreate = recreate_swapchain;
 
-                    cleanup_queue.destroy(&vk_engine.device);
-
-                    vk_engine
-                        .device
-                        .destroy_pipeline_layout(pipeline_layout, None);
-
-                    vk_engine
-                        .device
-                        .destroy_descriptor_pool(descriptor_pool, None);
-
-                    for buffer in &mut camera_buffer_per_frame {
-                        buffer.destroy(&vk_engine.device);
-                    }
-
-                    vk_engine.device.destroy_sampler(sampler, None);
-
-                    vk_engine.device.destroy_pipeline(graphics_pipeline, None);
-                    vk_engine
-                        .device
-                        .destroy_pipeline(inverted_graphics_pipeline, None);
-
-                    swapchain_manager.destroy(&vk_engine.device);
-
-                    vk_engine.device.destroy_render_pass(render_pass, None);
-
-                    frame_manager.destroy(&vk_engine.device);
-                    vk_engine.destroy();
-                    if let Some(debug_utils_helper) = &mut debug_utils_helper {
-                        debug_utils_helper.destroy();
-                    }
-                    app.destroy();
-                }
-                Event::MainEventsCleared => {
-                    if exiting {
-                        return;
-                    }
-                    // Application update code.
-
-                    let frame = vk_engine.current_frame;
-
-                    // DRAW STUFF
-
-                    let current_frame_data = &mut frame_manager.frame_data[frame as usize];
-
-                    let image_acquired_semaphore = current_frame_data.image_acquired_semaphore;
-                    let render_complete_semaphore = current_frame_data.render_complete_semaphore;
-
-                    let present_index = loop {
-                        let mut recreate = recreate_swapchain;
-
-                        if !recreate {
-                            match swapchain_manager.swapchain_loader.acquire_next_image(
-                                swapchain_manager.swapchain,
-                                u64::MAX,
-                                image_acquired_semaphore,
-                                vk::Fence::null(),
-                            ) {
-                                Ok((present_index, _)) => break present_index,
-                                Err(vk::Result::ERROR_OUT_OF_DATE_KHR)
-                                | Err(vk::Result::SUBOPTIMAL_KHR) => {
-                                    recreate = true;
-                                }
-                                Err(e) => {
-                                    panic!("Unexpected error during image acquisition: {:?}", e);
-                                }
-                            }
-                        }
-
-                        if recreate {
-                            recreate_swapchain = false;
-
-                            vk_engine.recreate_swapchain(
-                                &app.instance,
-                                vk::Extent2D {
-                                    width: window.inner_size().width,
-                                    height: window.inner_size().height,
-                                },
-                                &mut swapchain_manager,
-                                render_pass,
-                            );
-                        }
-                    };
-
-                    let current_swapchain_data =
-                        &swapchain_manager.swapchain_data[present_index as usize];
-
-                    let fence = &current_frame_data.frame_fence;
-                    vk_engine
-                        .device
-                        .wait_for_fences(&[*fence], true, u64::MAX)
-                        .unwrap();
-
-                    vk_engine.device.reset_fences(&[*fence]).unwrap();
-
-                    cleanup_queue.tick(&vk_engine.device);
-
-                    let command_buffer = current_frame_data.command_buffer;
-                    vk_engine
-                        .device
-                        .reset_command_buffer(
-                            command_buffer,
-                            vk::CommandBufferResetFlags::RELEASE_RESOURCES,
-                        )
-                        .unwrap();
-
-                    vk_engine
-                        .device
-                        .begin_command_buffer(
-                            command_buffer,
-                            &vk::CommandBufferBeginInfo {
-                                flags: vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT,
-                                ..Default::default()
-                            },
-                        )
-                        .unwrap();
-
-                    let vertices = [
-                        Vertex {
-                            position: vec2(100., 100.),
-                            colour: vec4(1.0, 0.0, 0.0, 1.0),
-                            tex_coords: vec2(0.5, 1.0),
-                        },
-                        Vertex {
-                            position: vec2(200., 0.),
-                            colour: vec4(0.0, 1.0, 0.0, 1.0),
-                            tex_coords: vec2(0.0, 0.0),
-                        },
-                        Vertex {
-                            position: vec2(0., 0.),
-                            colour: vec4(0.0, 0.0, 1.0, 1.0),
-                            tex_coords: vec2(1.0, 0.0),
-                        },
-                        Vertex {
-                            position: vec2(200., 150.),
-                            colour: vec4(1.0, 0.0, 0.0, 1.0),
-                            tex_coords: vec2(0.5, 1.0),
-                        },
-                        Vertex {
-                            position: vec2(300., 50.),
-                            colour: vec4(0.0, 1.0, 0.0, 1.0),
-                            tex_coords: vec2(0.0, 0.0),
-                        },
-                        Vertex {
-                            position: vec2(100., 50.),
-                            colour: vec4(0.0, 0.0, 1.0, 1.0),
-                            tex_coords: vec2(1.0, 0.0),
-                        },
-                    ];
-
-                    {
-                        let mut push_buffer_pass = push_buffer.start_pass();
-
-                        for v in &vertices {
-                            push_buffer_pass.push(*v);
-                        }
-                        // push_buffer_pass dropped at the end of scope;
-                        // NLL makes this redundant, but it's clearer this way.
-                    }
-
-                    let staging_buffer = &mut staging_buffer_per_frame[frame as usize];
-
-                    if staging_buffer.buffer.buffer.length < push_buffer.capacity() as _ {
-                        let new_staging_buffer = StagingBufferWithDedicatedAllocation::allocate(
-                            &vk_engine,
-                            push_buffer.capacity() as _,
-                            vk::BufferUsageFlags::TRANSFER_SRC,
-                            vk::SharingMode::EXCLUSIVE,
-                            vk::MemoryPropertyFlags::HOST_VISIBLE
-                                | vk::MemoryPropertyFlags::HOST_COHERENT,
-                        );
-
-                        event!(
-                            Level::DEBUG,
-                            "old staging buffer memory: {:?}, new staging buffer memory: {:?}",
-                            staging_buffer.memory,
-                            new_staging_buffer.memory
-                        );
-
-                        let old_staging_buffer =
-                            std::mem::replace(staging_buffer, new_staging_buffer);
-                        event!(Level::DEBUG, "replaced staging buffer");
-                        cleanup_queue.queue(old_staging_buffer);
-                    }
-
-                    if vertex_buffer.buffer.length < push_buffer.capacity() as _ {
-                        let new_vertex_buffer = VulkanBufferWithDedicatedAllocation::allocate(
-                            &vk_engine,
-                            push_buffer.capacity() as _,
-                            vk::BufferUsageFlags::TRANSFER_DST
-                                | vk::BufferUsageFlags::VERTEX_BUFFER,
-                            vk::SharingMode::EXCLUSIVE,
-                            vk::MemoryPropertyFlags::DEVICE_LOCAL,
-                        );
-
-                        if let Some(ref debug_utils_helper) = debug_utils_helper {
-                            debug_utils_helper
-                                .set_object_name(
-                                    &vk_engine.device,
-                                    new_vertex_buffer.buffer.buffer.as_raw(),
-                                    vk::ObjectType::BUFFER,
-                                    cstr!("Sprite Vertices"),
-                                )
-                                .expect("Could not set vertex buffer name");
-                            event!(Level::DEBUG, "set vertex buffer name!");
-                        }
-
-                        let old_vertex_buffer =
-                            std::mem::replace(&mut vertex_buffer, new_vertex_buffer);
-                        event!(Level::DEBUG, "replaced vertex buffer");
-                        cleanup_queue.queue(old_vertex_buffer);
-                    }
-
-                    if index_buffer.buffer.length < push_buffer.capacity() as _ {
-                        let new_index_buffer = create_index_buffer(
-                            &vk_engine,
-                            frame_manager.command_pool,
-                            push_buffer.capacity() as _,
-                            |i| i,
-                        );
-
-                        if let Some(ref debug_utils_helper) = debug_utils_helper {
-                            debug_utils_helper
-                                .set_object_name(
-                                    &vk_engine.device,
-                                    new_index_buffer.buffer.buffer.as_raw(),
-                                    vk::ObjectType::BUFFER,
-                                    cstr!("Sprite Indices"),
-                                )
-                                .expect("Could not set index buffer name");
-                            event!(Level::DEBUG, "set index buffer name!");
-                        }
-
-                        let old_index_buffer =
-                            std::mem::replace(&mut index_buffer, new_index_buffer);
-                        event!(Level::DEBUG, "replaced index buffer");
-
-                        cleanup_queue.queue(old_index_buffer);
-                    }
-
-                    staging_buffer.buffer.write(push_buffer.data(), 0);
-
-                    // Execution barrier *before* copying from the staging buffer to the vertex buffer:
-                    // the vertex buffer might still be used by last frame's rendering process.
-
-                    vk_engine.device.cmd_pipeline_barrier(
-                        command_buffer,
-                        PipelineStageFlags::VERTEX_INPUT, // Finish previous frame's vertex shader
-                        PipelineStageFlags::TRANSFER,     // Wait before uploading new vertices
-                        DependencyFlags::empty(),
-                        &[],
-                        &[],
-                        &[],
-                    );
-
-                    staging_buffer
-                        .buffer
-                        .buffer
-                        .copy(
-                            &vk_engine,
-                            command_buffer,
-                            &mut vertex_buffer.buffer,
-                            0,
-                            0,
-                            push_buffer.len() as _,
-                        )
-                        .unwrap();
-
-                    // Update camera buffer (not strictly necessary since the camera is completely static right now)
-                    let camera_buffer = &mut camera_buffer_per_frame[frame as usize];
-                    camera_buffer
-                        .buffer
-                        .write(&[cam.view_projection_matrix()], 0);
-
-                    let memory_barrier_transfer_render = vk::MemoryBarrier::builder()
-                        .src_access_mask(vk::AccessFlags::TRANSFER_WRITE)
-                        .dst_access_mask(vk::AccessFlags::VERTEX_ATTRIBUTE_READ)
-                        .build();
-
-                    vk_engine.device.cmd_pipeline_barrier(
-                        command_buffer,
-                        PipelineStageFlags::TRANSFER, // Finish vertex upload
-                        PipelineStageFlags::VERTEX_INPUT, // Wait before vertices are used
-                        DependencyFlags::empty(),
-                        &[memory_barrier_transfer_render],
-                        &[],
-                        &[],
-                    );
-
-                    let clear_values = [vk::ClearValue {
-                        color: vk::ClearColorValue {
-                            float32: [0.0, 0.0, 0.0, 0.0],
-                        },
-                    }];
-
-                    let render_pass_begin_info = vk::RenderPassBeginInfo::builder()
-                        .render_pass(render_pass)
-                        .framebuffer(current_swapchain_data.framebuffer)
-                        .render_area(vk::Rect2D {
-                            offset: vk::Offset2D { x: 0, y: 0 },
-                            extent: vk_engine.surface_resolution,
-                        })
-                        .clear_values(&clear_values);
-
-                    vk_engine.device.cmd_begin_render_pass(
-                        command_buffer,
-                        &render_pass_begin_info,
-                        vk::SubpassContents::INLINE,
-                    );
-
-                    vk_engine.device.cmd_bind_pipeline(
-                        command_buffer,
-                        vk::PipelineBindPoint::GRAPHICS,
-                        graphics_pipeline,
-                    );
-
-                    let viewports = [vk::Viewport {
-                        x: 0.,
-                        y: 0.,
-                        width: vk_engine.surface_resolution.width as f32,
-                        height: vk_engine.surface_resolution.height as f32,
-                        min_depth: 0.0,
-                        max_depth: 1.0,
-                    }];
-                    let scissors = [vk::Rect2D {
-                        offset: vk::Offset2D { x: 0, y: 0 },
-                        extent: vk_engine.surface_resolution,
-                    }];
-                    vk_engine
-                        .device
-                        .cmd_set_viewport(command_buffer, 0, &viewports);
-
-                    vk_engine
-                        .device
-                        .cmd_set_scissor(command_buffer, 0, &scissors);
-
-                    let camera_descriptor_set = camera_descriptors_per_frame[frame as usize];
-                    vk_engine.device.cmd_bind_descriptor_sets(
-                        command_buffer,
-                        vk::PipelineBindPoint::GRAPHICS,
-                        pipeline_layout,
-                        0,
-                        &[camera_descriptor_set, texture_descriptor_set],
-                        &[],
-                    );
-
-                    vk_engine.device.cmd_bind_vertex_buffers(
-                        command_buffer,
-                        0,
-                        &[vertex_buffer.buffer.buffer],
-                        &[0],
-                    );
-
-                    vk_engine.device.cmd_bind_index_buffer(
-                        command_buffer,
-                        index_buffer.buffer.buffer,
-                        0,
-                        IndexType::UINT32,
-                    );
-
-                    vk_engine
-                        .device
-                        .cmd_draw_indexed(command_buffer, 3, 1, 0, 0, 0);
-
-                    vk_engine.device.cmd_bind_pipeline(
-                        command_buffer,
-                        vk::PipelineBindPoint::GRAPHICS,
-                        inverted_graphics_pipeline,
-                    );
-
-                    vk_engine
-                        .device
-                        .cmd_draw_indexed(command_buffer, 3, 1, 3, 0, 0);
-
-                    vk_engine.device.cmd_end_render_pass(command_buffer);
-                    vk_engine.device.end_command_buffer(command_buffer).unwrap();
-
-                    let submit_info = vk::SubmitInfo::builder()
-                        .command_buffers(&[command_buffer])
-                        .wait_dst_stage_mask(&[vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT])
-                        .wait_semaphores(&[image_acquired_semaphore])
-                        .signal_semaphores(&[render_complete_semaphore])
-                        .build();
-                    vk_engine
-                        .device
-                        .queue_submit(vk_engine.present_queue, &[submit_info], *fence)
-                        .expect("Queue submit failed");
-
-                    let wait_semaphores = [render_complete_semaphore];
-                    let swapchains = [swapchain_manager.swapchain];
-                    let image_indices = [present_index];
-
-                    let present_info = vk::PresentInfoKHR::builder()
-                        .wait_semaphores(&wait_semaphores) // &base.rendering_complete_semaphore)
-                        .swapchains(&swapchains)
-                        .image_indices(&image_indices);
-
-                    match swapchain_manager
-                        .swapchain_loader
-                        .queue_present(vk_engine.present_queue, &present_info)
-                    {
-                        Ok(false) => {}
-                        Ok(true)
-                        | Err(vk::Result::ERROR_OUT_OF_DATE_KHR)
+                if !recreate {
+                    match swapchain_manager.swapchain_device.acquire_next_image(
+                        swapchain_manager.swapchain,
+                        u64::MAX,
+                        image_acquired_semaphore,
+                        vk::Fence::null(),
+                    ) {
+                        Ok((present_index, _)) => break present_index,
+                        Err(vk::Result::ERROR_OUT_OF_DATE_KHR)
                         | Err(vk::Result::SUBOPTIMAL_KHR) => {
-                            recreate_swapchain = true;
+                            recreate = true;
                         }
                         Err(e) => {
-                            panic!("Unexpected error during presentation: {:?}", e);
+                            panic!("Unexpected error during image acquisition: {:?}", e);
                         }
                     }
-                    vk_engine.advance_frame();
                 }
-                _ => {}
+
+                if recreate {
+                    recreate_swapchain = false;
+
+                    vk_engine.recreate_swapchain(
+                        &app.instance,
+                        vk::Extent2D {
+                            width: window.size().0,
+                            height: window.size().1,
+                        },
+                        &mut swapchain_manager,
+                        render_pass,
+                    );
+                }
+            };
+
+            let current_swapchain_data = &swapchain_manager.swapchain_data[present_index as usize];
+
+            let fence = &current_frame_data.frame_fence;
+            vk_engine
+                .device
+                .wait_for_fences(&[*fence], true, u64::MAX)
+                .unwrap();
+
+            vk_engine.device.reset_fences(&[*fence]).unwrap();
+
+            cleanup_queue.tick(&vk_engine.device);
+
+            let command_buffer = current_frame_data.command_buffer;
+            vk_engine
+                .device
+                .reset_command_buffer(
+                    command_buffer,
+                    vk::CommandBufferResetFlags::RELEASE_RESOURCES,
+                )
+                .unwrap();
+
+            vk_engine
+                .device
+                .begin_command_buffer(
+                    command_buffer,
+                    &vk::CommandBufferBeginInfo {
+                        flags: vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT,
+                        ..Default::default()
+                    },
+                )
+                .unwrap();
+
+            let vertices = [
+                Vertex {
+                    position: vec2(100., 100.),
+                    colour: vec4(1.0, 0.0, 0.0, 1.0),
+                    tex_coords: vec2(0.5, 1.0),
+                },
+                Vertex {
+                    position: vec2(200., 0.),
+                    colour: vec4(0.0, 1.0, 0.0, 1.0),
+                    tex_coords: vec2(0.0, 0.0),
+                },
+                Vertex {
+                    position: vec2(0., 0.),
+                    colour: vec4(0.0, 0.0, 1.0, 1.0),
+                    tex_coords: vec2(1.0, 0.0),
+                },
+                Vertex {
+                    position: vec2(200., 150.),
+                    colour: vec4(1.0, 0.0, 0.0, 1.0),
+                    tex_coords: vec2(0.5, 1.0),
+                },
+                Vertex {
+                    position: vec2(300., 50.),
+                    colour: vec4(0.0, 1.0, 0.0, 1.0),
+                    tex_coords: vec2(0.0, 0.0),
+                },
+                Vertex {
+                    position: vec2(100., 50.),
+                    colour: vec4(0.0, 0.0, 1.0, 1.0),
+                    tex_coords: vec2(1.0, 0.0),
+                },
+            ];
+
+            {
+                let mut push_buffer_pass = push_buffer.start_pass();
+
+                for v in &vertices {
+                    push_buffer_pass.push(*v);
+                }
+                // push_buffer_pass dropped at the end of scope;
+                // NLL makes this redundant, but it's clearer this way.
             }
-        })
+
+            let staging_buffer = &mut staging_buffer_per_frame[frame as usize];
+
+            if staging_buffer.buffer.buffer.length < push_buffer.capacity() as _ {
+                let new_staging_buffer = StagingBufferWithDedicatedAllocation::allocate(
+                    &vk_engine,
+                    push_buffer.capacity() as _,
+                    vk::BufferUsageFlags::TRANSFER_SRC,
+                    vk::SharingMode::EXCLUSIVE,
+                    vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+                );
+
+                event!(
+                    Level::DEBUG,
+                    "old staging buffer memory: {:?}, new staging buffer memory: {:?}",
+                    staging_buffer.memory,
+                    new_staging_buffer.memory
+                );
+
+                let old_staging_buffer = std::mem::replace(staging_buffer, new_staging_buffer);
+                event!(Level::DEBUG, "replaced staging buffer");
+                cleanup_queue.queue(old_staging_buffer);
+            }
+
+            if vertex_buffer.buffer.length < push_buffer.capacity() as _ {
+                let new_vertex_buffer = VulkanBufferWithDedicatedAllocation::allocate(
+                    &vk_engine,
+                    push_buffer.capacity() as _,
+                    vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::VERTEX_BUFFER,
+                    vk::SharingMode::EXCLUSIVE,
+                    vk::MemoryPropertyFlags::DEVICE_LOCAL,
+                );
+
+                if let Some(ref debug_device) = debug_device {
+                    debug_device
+                        .set_debug_utils_object_name(
+                            &vk::DebugUtilsObjectNameInfoEXT::default()
+                                .object_handle(new_vertex_buffer.buffer.buffer)
+                                .object_name(cstr!("Sprite Vertices")),
+                        )
+                        .expect("Could not set vertex buffer name");
+                    event!(Level::DEBUG, "set vertex buffer name!");
+                }
+
+                let old_vertex_buffer = std::mem::replace(&mut vertex_buffer, new_vertex_buffer);
+                event!(Level::DEBUG, "replaced vertex buffer");
+                cleanup_queue.queue(old_vertex_buffer);
+            }
+
+            if index_buffer.buffer.length < push_buffer.capacity() as _ {
+                let new_index_buffer = create_index_buffer(
+                    &vk_engine,
+                    frame_manager.command_pool,
+                    push_buffer.capacity() as _,
+                    |i| i,
+                );
+
+                if let Some(ref debug_device) = debug_device {
+                    debug_device
+                        .set_debug_utils_object_name(
+                            &vk::DebugUtilsObjectNameInfoEXT::default()
+                                .object_handle(new_index_buffer.buffer.buffer)
+                                .object_name(cstr!("Sprite Indices")),
+                        )
+                        .expect("Could not set index buffer name");
+                    event!(Level::DEBUG, "set index buffer name!");
+                }
+
+                let old_index_buffer = std::mem::replace(&mut index_buffer, new_index_buffer);
+                event!(Level::DEBUG, "replaced index buffer");
+
+                cleanup_queue.queue(old_index_buffer);
+            }
+
+            staging_buffer.buffer.write(push_buffer.data(), 0);
+
+            // Execution barrier *before* copying from the staging buffer to the vertex buffer:
+            // the vertex buffer might still be used by last frame's rendering process.
+
+            vk_engine.device.cmd_pipeline_barrier(
+                command_buffer,
+                PipelineStageFlags::VERTEX_INPUT, // Finish previous frame's vertex shader
+                PipelineStageFlags::TRANSFER,     // Wait before uploading new vertices
+                DependencyFlags::empty(),
+                &[],
+                &[],
+                &[],
+            );
+
+            staging_buffer
+                .buffer
+                .buffer
+                .copy(
+                    &vk_engine,
+                    command_buffer,
+                    &mut vertex_buffer.buffer,
+                    0,
+                    0,
+                    push_buffer.len() as _,
+                )
+                .unwrap();
+
+            // Update camera buffer (not strictly necessary since the camera is completely static right now)
+            let camera_buffer = &mut camera_buffer_per_frame[frame as usize];
+            camera_buffer
+                .buffer
+                .write(&[cam.view_projection_matrix()], 0);
+
+            let memory_barrier_transfer_render = vk::MemoryBarrier::default()
+                .src_access_mask(vk::AccessFlags::TRANSFER_WRITE)
+                .dst_access_mask(vk::AccessFlags::VERTEX_ATTRIBUTE_READ);
+
+            vk_engine.device.cmd_pipeline_barrier(
+                command_buffer,
+                PipelineStageFlags::TRANSFER,     // Finish vertex upload
+                PipelineStageFlags::VERTEX_INPUT, // Wait before vertices are used
+                DependencyFlags::empty(),
+                &[memory_barrier_transfer_render],
+                &[],
+                &[],
+            );
+
+            let clear_values = [vk::ClearValue {
+                color: vk::ClearColorValue {
+                    float32: [0.0, 0.0, 0.0, 0.0],
+                },
+            }];
+
+            let render_pass_begin_info = vk::RenderPassBeginInfo::default()
+                .render_pass(render_pass)
+                .framebuffer(current_swapchain_data.framebuffer)
+                .render_area(vk::Rect2D {
+                    offset: vk::Offset2D { x: 0, y: 0 },
+                    extent: vk_engine.surface_resolution,
+                })
+                .clear_values(&clear_values);
+
+            vk_engine.device.cmd_begin_render_pass(
+                command_buffer,
+                &render_pass_begin_info,
+                vk::SubpassContents::INLINE,
+            );
+
+            vk_engine.device.cmd_bind_pipeline(
+                command_buffer,
+                vk::PipelineBindPoint::GRAPHICS,
+                graphics_pipeline,
+            );
+
+            let viewports = [vk::Viewport {
+                x: 0.,
+                y: 0.,
+                width: vk_engine.surface_resolution.width as f32,
+                height: vk_engine.surface_resolution.height as f32,
+                min_depth: 0.0,
+                max_depth: 1.0,
+            }];
+            let scissors = [vk::Rect2D {
+                offset: vk::Offset2D { x: 0, y: 0 },
+                extent: vk_engine.surface_resolution,
+            }];
+            vk_engine
+                .device
+                .cmd_set_viewport(command_buffer, 0, &viewports);
+
+            vk_engine
+                .device
+                .cmd_set_scissor(command_buffer, 0, &scissors);
+
+            let camera_descriptor_set = camera_descriptors_per_frame[frame as usize];
+            vk_engine.device.cmd_bind_descriptor_sets(
+                command_buffer,
+                vk::PipelineBindPoint::GRAPHICS,
+                pipeline_layout,
+                0,
+                &[camera_descriptor_set, texture_descriptor_set],
+                &[],
+            );
+
+            vk_engine.device.cmd_bind_vertex_buffers(
+                command_buffer,
+                0,
+                &[vertex_buffer.buffer.buffer],
+                &[0],
+            );
+
+            vk_engine.device.cmd_bind_index_buffer(
+                command_buffer,
+                index_buffer.buffer.buffer,
+                0,
+                IndexType::UINT32,
+            );
+
+            vk_engine
+                .device
+                .cmd_draw_indexed(command_buffer, 3, 1, 0, 0, 0);
+
+            vk_engine.device.cmd_bind_pipeline(
+                command_buffer,
+                vk::PipelineBindPoint::GRAPHICS,
+                inverted_graphics_pipeline,
+            );
+
+            vk_engine
+                .device
+                .cmd_draw_indexed(command_buffer, 3, 1, 3, 0, 0);
+
+            vk_engine.device.cmd_end_render_pass(command_buffer);
+            vk_engine.device.end_command_buffer(command_buffer).unwrap();
+
+            let command_buffers = [command_buffer];
+            let image_acquired_semaphores = [image_acquired_semaphore];
+            let render_complete_semaphores = [render_complete_semaphore];
+
+            let submit_info = vk::SubmitInfo::default()
+                .command_buffers(&command_buffers)
+                .wait_dst_stage_mask(&[vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT])
+                .wait_semaphores(&image_acquired_semaphores)
+                .signal_semaphores(&render_complete_semaphores);
+            vk_engine
+                .device
+                .queue_submit(vk_engine.present_queue, &[submit_info], *fence)
+                .expect("Queue submit failed");
+
+            let wait_semaphores = [render_complete_semaphore];
+            let swapchains = [swapchain_manager.swapchain];
+            let image_indices = [present_index];
+
+            let present_info = vk::PresentInfoKHR::default()
+                .wait_semaphores(&wait_semaphores) // &base.rendering_complete_semaphore)
+                .swapchains(&swapchains)
+                .image_indices(&image_indices);
+
+            match swapchain_manager
+                .swapchain_device
+                .queue_present(vk_engine.present_queue, &present_info)
+            {
+                Ok(false) => {}
+                Ok(true)
+                | Err(vk::Result::ERROR_OUT_OF_DATE_KHR)
+                | Err(vk::Result::SUBOPTIMAL_KHR) => {
+                    recreate_swapchain = true;
+                }
+                Err(e) => {
+                    panic!("Unexpected error during presentation: {:?}", e);
+                }
+            }
+            vk_engine.advance_frame();
+        }
     }
 }
